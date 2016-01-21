@@ -25,7 +25,7 @@ func NewCypherDriver(cypherRunner neocypherrunner.CypherRunner, indexManager neo
 
 //Initialise initialisation of the indexes
 func (pcd CypherDriver) Initialise() error {
-	return neoutils.EnsureConstraints(pcd.indexManager, map[string]string{"Role": "uuid"})
+	return neoutils.EnsureConstraints(pcd.indexManager, map[string]string{"Content": "uuid"})
 }
 
 // Check - Feeds into the Healthcheck and checks whether we can connect to Neo and that the datastore isn't empty
@@ -33,7 +33,7 @@ func (pcd CypherDriver) Check() error {
 	return neoutils.Check(pcd.cypherRunner)
 }
 
-// Read - reads a role given a UUID
+// Read - reads a content given a UUID
 func (pcd CypherDriver) Read(uuid string) (interface{}, bool, error) {
 	results := []struct {
 		UUID          string `json:"uuid"`
@@ -71,7 +71,7 @@ func (pcd CypherDriver) Read(uuid string) (interface{}, bool, error) {
 	return c, true, nil
 }
 
-//Write - Writes a Role node
+//Write - Writes a content node
 func (pcd CypherDriver) Write(thing interface{}) error {
 	c := thing.(content)
 
@@ -102,7 +102,7 @@ func (pcd CypherDriver) Write(thing interface{}) error {
 	return pcd.cypherRunner.CypherBatch([]*neoism.CypherQuery{query})
 }
 
-//Delete - Deletes a Role
+//Delete - Deletes a content
 func (pcd CypherDriver) Delete(uuid string) (bool, error) {
 	clearNode := &neoism.CypherQuery{
 		Statement: `
@@ -147,7 +147,7 @@ func (pcd CypherDriver) Delete(uuid string) (bool, error) {
 	return deleted, err
 }
 
-// DecodeJSON - Decodes JSON into role
+// DecodeJSON - Decodes JSON into content
 func (pcd CypherDriver) DecodeJSON(dec *json.Decoder) (interface{}, string, error) {
 	c := content{}
 	err := dec.Decode(&c)
