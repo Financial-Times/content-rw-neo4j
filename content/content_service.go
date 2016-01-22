@@ -38,15 +38,13 @@ func (pcd CypherDriver) Check() error {
 // Read - reads a content given a UUID
 func (pcd CypherDriver) Read(uuid string) (interface{}, bool, error) {
 	results := []struct {
-		UUID          string `json:"uuid"`
-		Title         string `json:"title"`
-		PublishedDate string `json:"publishedDate"`
+		content
 	}{}
 
 	query := &neoism.CypherQuery{
 		Statement: `MATCH (n:Content {uuid:{uuid}}) return n.uuid
-		as uuid, n.title as title,
-		n.publishedDate as publishedDate`,
+																								as uuid, n.title as title,
+																								n.publishedDate as publishedDate`,
 		Parameters: map[string]interface{}{
 			"uuid": uuid,
 		},
@@ -98,8 +96,8 @@ func (pcd CypherDriver) Write(thing interface{}) error {
 	}
 
 	statement := `MERGE (n:Thing {uuid: {uuid}})
-				set n={allprops}
-				set n :Content`
+										set n={allprops}
+										set n :Content`
 
 	query := &neoism.CypherQuery{
 		Statement: statement,
