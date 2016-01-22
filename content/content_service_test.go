@@ -6,13 +6,12 @@ import (
 	"os"
 	"testing"
 
-	"github.com/Financial-Times/base-ft-rw-app-go"
 	"github.com/Financial-Times/neo-utils-go"
 	"github.com/jmcvetta/neoism"
 	"github.com/stretchr/testify/assert"
 )
 
-var contentDriver baseftrwapp.Service
+var contentDriver CypherDriver
 
 func TestDelete(t *testing.T) {
 	assert := assert.New(t)
@@ -74,6 +73,56 @@ func TestCreateNotAllValuesPresent(t *testing.T) {
 
 	readContentForUUIDAndCheckFieldsMatch(t, uuid, contentToWrite)
 
+	cleanUp(t, uuid)
+}
+
+func TestWriteCalculateEpocCorrectly(t *testing.T) {
+	assert := assert.New(t)
+
+	contentDriver = getContentCypherDriver(t)
+	uuid := "12345"
+	contentToWrite := content{UUID: uuid, Title: "TestContent", PublishedDate: "1970-01-01T01:00:00.000Z"}
+	contentDriver.Write(contentToWrite)
+
+	result := []struct {
+		PublishedDateEpoc int `json:"t.publishedDateEpoch"`
+	}{}
+
+	getEpocQuery := &neoism.CypherQuery{
+		Statement: `
+			MATCH (t:Content {uuid:"12345"}) RETURN t.publishedDateEpoch
+			`,
+		Result: &result,
+	}
+
+	err := contentDriver.cypherRunner.CypherBatch([]*neoism.CypherQuery{getEpocQuery})
+	assert.NoError(err)
+	assert.Equal(3600, result[0].PublishedDateEpoc, "Epoc of 1970-01-01T01:00:00.000Z should be 3600")
+	cleanUp(t, uuid)
+}
+
+func TestWritePrefLabelIsAlsoWrittenAndIsEqualToTitle(t *testing.T) {
+	assert := assert.New(t)
+
+	contentDriver = getContentCypherDriver(t)
+	uuid := "12345"
+	contentToWrite := content{UUID: uuid, Title: "TestContent", PublishedDate: "1970-01-01T01:00:00.000Z"}
+	contentDriver.Write(contentToWrite)
+
+	result := []struct {
+		PrefLabel string `json:"t.prefLabel"`
+	}{}
+
+	getPrefLabelQuery := &neoism.CypherQuery{
+		Statement: `
+				MATCH (t:Content {uuid:"12345"}) RETURN t.prefLabel
+				`,
+		Result: &result,
+	}
+
+	err := contentDriver.cypherRunner.CypherBatch([]*neoism.CypherQuery{getPrefLabelQuery})
+	assert.NoError(err)
+	assert.Equal("TestContent", result[0].PrefLabel, "PrefLabel should be 'TestContent")
 	cleanUp(t, uuid)
 }
 

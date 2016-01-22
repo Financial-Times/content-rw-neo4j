@@ -3,6 +3,8 @@ package content
 import (
 	"encoding/json"
 
+	"time"
+
 	"github.com/Financial-Times/neo-cypher-runner-go"
 	"github.com/Financial-Times/neo-utils-go"
 	"github.com/jmcvetta/neoism"
@@ -81,10 +83,18 @@ func (pcd CypherDriver) Write(thing interface{}) error {
 
 	if c.Title != "" {
 		params["title"] = c.Title
+		params["prefLabel"] = c.Title
 	}
 
 	if c.PublishedDate != "" {
 		params["publishedDate"] = c.PublishedDate
+		datetimeEpoch, err := time.Parse(time.RFC3339, c.PublishedDate)
+
+		if err != nil {
+			return err
+		}
+
+		params["publishedDateEpoch"] = datetimeEpoch.Unix()
 	}
 
 	statement := `MERGE (n:Thing {uuid: {uuid}})
