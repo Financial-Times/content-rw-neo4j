@@ -7,6 +7,7 @@ import (
 
 	"github.com/Financial-Times/neo-cypher-runner-go"
 	"github.com/Financial-Times/neo-utils-go"
+	log "github.com/Sirupsen/logrus"
 	"github.com/jmcvetta/neoism"
 )
 
@@ -75,6 +76,11 @@ func (pcd CypherDriver) Read(uuid string) (interface{}, bool, error) {
 func (pcd CypherDriver) Write(thing interface{}) error {
 	c := thing.(content)
 
+	// Only Articles have a body
+	if c.Body == "" {
+		log.Debugf("There is no body with this content item therefore assuming is it not an Article: %s\n", c.UUID)
+		return nil
+	}
 	params := map[string]interface{}{
 		"uuid": c.UUID,
 	}
