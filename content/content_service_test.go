@@ -19,9 +19,9 @@ func TestDelete(t *testing.T) {
 
 	contentDriver = getContentCypherDriver(t)
 
-	contentToDelete := content{UUID: uuid, Title: "TestContent", PublishedDate: "1970-01-01T01:00:00.000Z"}
+	contentRecieved := content{UUID: uuid, Title: "TestContent", PublishedDate: "1970-01-01T01:00:00.000Z", Body: "Some Test text"}
 
-	assert.NoError(contentDriver.Write(contentToDelete), "Failed to write content")
+	assert.NoError(contentDriver.Write(contentRecieved), "Failed to write content")
 
 	found, err := contentDriver.Delete(uuid)
 	assert.True(found, "Didn't manage to delete content for uuid %", uuid)
@@ -39,11 +39,12 @@ func TestCreateAllValuesPresent(t *testing.T) {
 	uuid := "12345"
 	contentDriver = getContentCypherDriver(t)
 
-	contentToWrite := content{UUID: uuid, Title: "TestContent", PublishedDate: "1970-01-01T01:00:00.000Z"}
+	contentRecieved := content{UUID: uuid, Title: "TestContent", PublishedDate: "1970-01-01T01:00:00.000Z", Body: "Some Test text"}
+	contentToRead := content{UUID: uuid, Title: "TestContent", PublishedDate: "1970-01-01T01:00:00.000Z"}
 
-	assert.NoError(contentDriver.Write(contentToWrite), "Failed to write content")
+	assert.NoError(contentDriver.Write(contentRecieved), "Failed to write content")
 
-	readContentForUUIDAndCheckFieldsMatch(t, uuid, contentToWrite)
+	readContentForUUIDAndCheckFieldsMatch(t, uuid, contentToRead)
 
 	cleanUp(t, uuid)
 }
@@ -53,11 +54,12 @@ func TestCreateHandlesSpecialCharacters(t *testing.T) {
 	uuid := "12345"
 	contentDriver = getContentCypherDriver(t)
 
-	contentToWrite := content{UUID: uuid, Title: "TestContent", PublishedDate: "1970-01-01T01:00:00.000Z"}
+	contentRecieved := content{UUID: uuid, Title: "TestContent", PublishedDate: "1970-01-01T01:00:00.000Z", Body: "Some Test text"}
+	contentToRead := content{UUID: uuid, Title: "TestContent", PublishedDate: "1970-01-01T01:00:00.000Z"}
 
-	assert.NoError(contentDriver.Write(contentToWrite), "Failed to write content")
+	assert.NoError(contentDriver.Write(contentRecieved), "Failed to write content")
 
-	readContentForUUIDAndCheckFieldsMatch(t, uuid, contentToWrite)
+	readContentForUUIDAndCheckFieldsMatch(t, uuid, contentToRead)
 
 	cleanUp(t, uuid)
 }
@@ -67,11 +69,12 @@ func TestCreateNotAllValuesPresent(t *testing.T) {
 	uuid := "12345"
 	contentDriver = getContentCypherDriver(t)
 
-	contentToWrite := content{UUID: uuid, Title: "TestContent", PublishedDate: "1970-01-01T01:00:00.000Z"}
+	contentRecieved := content{UUID: uuid, Title: "TestContent", PublishedDate: "1970-01-01T01:00:00.000Z", Body: "Some Test text"}
+	contentToRead := content{UUID: uuid, Title: "TestContent", PublishedDate: "1970-01-01T01:00:00.000Z"}
 
-	assert.NoError(contentDriver.Write(contentToWrite), "Failed to write content")
+	assert.NoError(contentDriver.Write(contentRecieved), "Failed to write content")
 
-	readContentForUUIDAndCheckFieldsMatch(t, uuid, contentToWrite)
+	readContentForUUIDAndCheckFieldsMatch(t, uuid, contentToRead)
 
 	cleanUp(t, uuid)
 }
@@ -81,8 +84,8 @@ func TestWriteCalculateEpocCorrectly(t *testing.T) {
 
 	contentDriver = getContentCypherDriver(t)
 	uuid := "12345"
-	contentToWrite := content{UUID: uuid, Title: "TestContent", PublishedDate: "1970-01-01T01:00:00.000Z"}
-	contentDriver.Write(contentToWrite)
+	contentRecieved := content{UUID: uuid, Title: "TestContent", PublishedDate: "1970-01-01T01:00:00.000Z", Body: "Some Test text"}
+	contentDriver.Write(contentRecieved)
 
 	result := []struct {
 		PublishedDateEpoc int `json:"t.publishedDateEpoch"`
@@ -106,8 +109,8 @@ func TestWritePrefLabelIsAlsoWrittenAndIsEqualToTitle(t *testing.T) {
 
 	contentDriver = getContentCypherDriver(t)
 	uuid := "12345"
-	contentToWrite := content{UUID: uuid, Title: "TestContent", PublishedDate: "1970-01-01T01:00:00.000Z"}
-	contentDriver.Write(contentToWrite)
+	contentRecieved := content{UUID: uuid, Title: "TestContent", PublishedDate: "1970-01-01T01:00:00.000Z", Body: "Some Test text"}
+	contentDriver.Write(contentRecieved)
 
 	result := []struct {
 		PrefLabel string `json:"t.prefLabel"`
