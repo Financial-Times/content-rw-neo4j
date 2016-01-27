@@ -1,5 +1,5 @@
 name    'ft-content_rw_neo4j'
-version '0.0.12'
+version '0.0.13'
 source 'UNKNOWN'
 author 'ft'
 license 'Apache License, Version 2.0'
@@ -10,3 +10,4 @@ project_page 'UNKNOWN'
 ## Add dependencies, if any:
 dependency 'ft/common_pp_up', '1.0.x'
 dependency 'ft/satellitesubscribe', '0.0.x'
+dependency 'ft/go_service_profile', '>= 0.0.0'
