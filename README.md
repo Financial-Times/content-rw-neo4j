@@ -55,7 +55,7 @@ A successful PUT results in 200.
 
 We  are only interested in pieces of Content that can be annotated therefore we only want to ingest/write pieces of Content that have a body.
 
-If the incoming JSON doesn't have a body then we ignore it and only log that we are ignoring while returning a 204
+If the incoming JSON doesn't have a body then we ignore it and only log that we are ignoring. TODO: We should return a 204 not a 200
 
 We run queries in batches. If a batch fails, all failing requests will get a 500 server error response.
 
