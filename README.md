@@ -51,7 +51,13 @@ Every request results in an attempt to update the content
 
 A successful PUT results in 200.
 
-TODO: Do we want batches for say large scale historical loads of content? => We run queries in batches. If a batch fails, all failing requests will get a 500 server error response.
+**PLEASE NOTE:**
+
+We  are only interested in pieces of Content that can be annotated therefore we only want to ingest/write pieces of Content that have a body.
+
+If the incoming JSON doesn't have a body then we ignore it and only log that we are ignoring while returning a 204
+
+We run queries in batches. If a batch fails, all failing requests will get a 500 server error response.
 
 Invalid json body input, or uuids that don't match between the path and the body will result in a 400 bad request response.
 
