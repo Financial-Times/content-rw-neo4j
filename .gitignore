@@ -1,0 +1,7 @@
+Compiled source #
+###################
+*.exe
+
+# Logs and databases #
+######################
+*.log

@@ -82,3 +82,8 @@ Will return 204 if successful, 404 if not found
 Healthchecks: [http://localhost:8080/__health](http://localhost:8080/__health)
 
 Ping: [http://localhost:8080/ping](http://localhost:8080/ping) or [http://localhost:8080/__ping](http://localhost:8080/__ping)
+
+### Logging
+ the application uses logrus, the logfile is initilaised in main.go.
+ logging requires an env app parameter, for all enviromets  other than local logs are written to file
+ when running locally logging is written to console (if you want to log locally to file you need to pass in an env parameter that is != local)

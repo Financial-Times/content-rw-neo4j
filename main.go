@@ -16,12 +16,12 @@ import (
 )
 
 func main() {
-	log.SetLevel(log.InfoLevel)
-	log.Infof("Application started with args %s", os.Args)
 
+	log.Infof("Application starting with args %s", os.Args)
 	app := cli.App("content-rw-neo4j", "A RESTful API for managing Content (bare bones representation as full content is served from MongoDB) in neo4j")
 	neoURL := app.StringOpt("neo-url", "http://localhost:7474/db/data", "neo4j endpoint URL")
 	port := app.IntOpt("port", 8080, "Port to listen on")
+	env := app.StringOpt("env", "local", "environment this app is running in")
 	batchSize := app.IntOpt("batchSize", 1024, "Maximum number of statements to execute per batch")
 	graphiteTCPAddress := app.StringOpt("graphiteTCPAddress", "",
 		"Graphite TCP address, e.g. graphite.ft.com:2003. Leave as default if you do NOT want to output to graphite (e.g. if running locally)")
@@ -52,9 +52,10 @@ func main() {
 
 		baseftrwapp.RunServer(engs,
 			v1a.Handler("ft-content_rw_neo4j ServiceModule", "Writes 'content' to Neo4j, usually as part of a bulk upload done on a schedule", checks...),
-			*port)
+			*port, "content-rw-neo4j", *env)
 	}
-
+	log.SetLevel(log.InfoLevel)
+	log.Infof("Application started with args %s", os.Args)
 	app.Run(os.Args)
 }
 
