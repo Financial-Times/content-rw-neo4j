@@ -1,6 +1,7 @@
 Compiled source #
 ###################
 *.exe
+content-rw-neo4j
 
 # Logs and databases #
 ######################
