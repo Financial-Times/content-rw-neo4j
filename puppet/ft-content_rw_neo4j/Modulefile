@@ -1,5 +1,5 @@
 name    'ft-content_rw_neo4j'
-version '0.0.14'
+version '0.0.15'
 source 'UNKNOWN'
 author 'ft'
 license 'Apache License, Version 2.0'
