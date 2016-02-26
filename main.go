@@ -12,6 +12,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/jawher/mow.cli"
 	"github.com/jmcvetta/neoism"
+	"net/http"
 )
 
 func main() {
@@ -30,6 +31,7 @@ func main() {
 
 	app.Action = func() {
 		db, err := neoism.Connect(*neoURL)
+		db.Session.Client = &http.Client{Transport: &http.Transport{MaxIdleConnsPerHost: 100}}
 		if err != nil {
 			log.Errorf("Could not connect to neo4j, error=[%s]\n", err)
 		}
