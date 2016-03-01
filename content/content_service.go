@@ -2,10 +2,11 @@ package content
 
 import (
 	"encoding/json"
+	"time"
+
 	"github.com/Financial-Times/neo-utils-go/neoutils"
 	log "github.com/Sirupsen/logrus"
 	"github.com/jmcvetta/neoism"
-	"time"
 )
 
 const (
@@ -75,7 +76,7 @@ func (pcd CypherDriver) Write(thing interface{}) error {
 
 	// Only Articles have a body
 	if c.Body == "" {
-		log.Debugf("There is no body with this content item therefore assuming is it not an Article: %s\n", c.UUID)
+		log.Infof("There is no body with this content item therefore assuming is it not an Article: %s\n", c.UUID)
 		return nil
 	}
 	params := map[string]interface{}{
