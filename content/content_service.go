@@ -2,16 +2,17 @@ package content
 
 import (
 	"encoding/json"
+	"fmt"
+	"regexp"
 	"time"
 
 	"github.com/Financial-Times/neo-utils-go/neoutils"
+	"github.com/Financial-Times/uri-utils-go/mapper"
 	log "github.com/Sirupsen/logrus"
 	"github.com/jmcvetta/neoism"
 )
 
-const (
-	fsAuthority = "http://api.ft.com/system/FACTSET"
-)
+var uuidExtractRegex = regexp.MustCompile(".*/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$")
 
 // CypherDriver - CypherDriver
 type CypherDriver struct {
@@ -41,9 +42,9 @@ func (pcd CypherDriver) Read(uuid string) (interface{}, bool, error) {
 	}{}
 
 	query := &neoism.CypherQuery{
-		Statement: `MATCH (n:Content {uuid:{uuid}}) return n.uuid
-																								as uuid, n.title as title,
-																								n.publishedDate as publishedDate`,
+		Statement: `MATCH (n:Content {uuid:{uuid}})
+			OPTIONAL MATCH (n)-[:IS_CLASSIFIED_BY]->(b:Brand) WITH n,collect({id:b.uuid}) as brands
+			return n.uuid as uuid, n.title as title, n.publishedDate as publishedDate, brands`,
 		Parameters: map[string]interface{}{
 			"uuid": uuid,
 		},
@@ -62,10 +63,22 @@ func (pcd CypherDriver) Read(uuid string) (interface{}, bool, error) {
 
 	result := results[0]
 
+	if len(result.Brands) == 1 && (result.Brands[0].Id == "") {
+		result.Brands = []brand{}
+	}
+
+	var brands []brand
+
+	for _, brand := range result.Brands {
+		brand.Id = mapper.IDURL(brand.Id)
+		brands = append(brands, brand)
+	}
+
 	c := content{
 		UUID:          result.UUID,
 		Title:         result.Title,
 		PublishedDate: result.PublishedDate,
+		Brands:        brands,
 	}
 	return c, true, nil
 }
@@ -99,19 +112,63 @@ func (pcd CypherDriver) Write(thing interface{}) error {
 		params["publishedDateEpoch"] = datetimeEpoch.Unix()
 	}
 
+	deleteEntityRelationshipsQuery := &neoism.CypherQuery{
+		Statement: `MATCH (t:Thing {uuid:{uuid}})
+				OPTIONAL MATCH (b:Brand)<-[rel:IS_CLASSIFIED_BY]-(t)
+				DELETE rel`,
+		Parameters: map[string]interface{}{
+			"uuid": c.UUID,
+		},
+	}
+
+	queries := []*neoism.CypherQuery{deleteEntityRelationshipsQuery}
+
+	for _, brand := range c.Brands {
+		brandUuid, err := extractUUIDFromURI(brand.Id)
+		if err != nil {
+			return err
+		}
+		addBrandsQuery := addBrandsQuery(brandUuid, c.UUID)
+		queries = append(queries, addBrandsQuery)
+	}
+
 	statement := `MERGE (n:Thing {uuid: {uuid}})
 										set n={allprops}
 										set n :Content`
 
-	query := &neoism.CypherQuery{
+	writeContentQuery := &neoism.CypherQuery{
 		Statement: statement,
 		Parameters: map[string]interface{}{
 			"uuid":     c.UUID,
 			"allprops": params,
 		},
 	}
+	queries = append(queries, writeContentQuery)
 
-	return pcd.cypherRunner.CypherBatch([]*neoism.CypherQuery{query})
+	return pcd.cypherRunner.CypherBatch(queries)
+}
+
+func addBrandsQuery(brandUuid string, contentUuid string) *neoism.CypherQuery {
+	statement := `MATCH (b:Brand{uuid:{brandUuid}})
+						MERGE (c:Thing{uuid:{contentUuid}})
+						MERGE (c)-[:IS_CLASSIFIED_BY]->(b)`
+
+	query := &neoism.CypherQuery{
+		Statement: statement,
+		Parameters: map[string]interface{}{
+			"brandUuid":   brandUuid,
+			"contentUuid": contentUuid,
+		},
+	}
+	return query
+}
+
+func extractUUIDFromURI(uri string) (string, error) {
+	result := uuidExtractRegex.FindStringSubmatch(uri)
+	if len(result) == 2 {
+		return result[1], nil
+	}
+	return "", fmt.Errorf("Couldn't extract uuid from uri %s", uri)
 }
 
 //Delete - Deletes a content
@@ -119,7 +176,9 @@ func (pcd CypherDriver) Delete(uuid string) (bool, error) {
 	clearNode := &neoism.CypherQuery{
 		Statement: `
 			MATCH (p:Thing {uuid: {uuid}})
+			OPTIONAL MATCH (p)-[rel:IS_CLASSIFIED_BY]->(b:Brand)
 			REMOVE p:Content
+			DELETE rel
 			SET p={props}
 		`,
 		Parameters: map[string]interface{}{
