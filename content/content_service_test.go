@@ -99,8 +99,13 @@ func TestUpdateWillRemovePropertiesNoLongerPresent(t *testing.T) {
 	assert.NoError(err)
 	assert.NotEmpty(storedFullContent)
 
-	assert.NoError(contentDriver.Write(minimalContent), "Failed to write updated content")
-	storedMinimalContent, _, err := contentDriver.Read(minimalContentUuid)
+	var shorterFullContent = content{
+		UUID: fullContentUuid,
+		Body: "Shorter body",
+	}
+
+	assert.NoError(contentDriver.Write(shorterFullContent), "Failed to write updated content")
+	storedMinimalContent, _, err := contentDriver.Read(fullContentUuid)
 
 	assert.NoError(err)
 	assert.NotEmpty(storedMinimalContent)
@@ -196,10 +201,10 @@ func getDatabaseConnection(assert *assert.Assertions) *neoism.Database {
 func cleanDB(db *neoism.Database, t *testing.T, assert *assert.Assertions) {
 	qs := []*neoism.CypherQuery{
 		{
-			Statement: fmt.Sprintf("MATCH (mc:Thing {uuid: '%v'})-[rel:IS_CLASSIFIED_BY]->(b:Brand) DELETE mc, rel", minimalContentUuid),
+			Statement: fmt.Sprintf("MATCH (mc:Thing {uuid: '%v'}) DETACH DELETE mc", minimalContentUuid),
 		},
 		{
-			Statement: fmt.Sprintf("MATCH (fc:Thing {uuid: '%v'})-[rel:IS_CLASSIFIED_BY]->(b:Brand) DELETE fc, rel", fullContentUuid),
+			Statement: fmt.Sprintf("MATCH (fc:Thing {uuid: '%v'}) DETACH DELETE fc", fullContentUuid),
 		},
 	}
 
