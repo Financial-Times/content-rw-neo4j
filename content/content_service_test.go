@@ -3,86 +3,131 @@
 package content
 
 import (
+	"fmt"
 	"os"
 	"testing"
 
+	"github.com/Financial-Times/base-ft-rw-app-go/baseftrwapp"
 	"github.com/Financial-Times/neo-utils-go/neoutils"
 	"github.com/jmcvetta/neoism"
 	"github.com/stretchr/testify/assert"
 )
 
-var contentDriver CypherDriver
+const (
+	minimalContentUuid      = "ce3f2f5e-33d1-4c36-89e3-51aa00fd5660"
+	fullContentUuid         = "4f21ba89-940c-4708-8959-cc5816afa639"
+	noBodyContentUuid       = "6440aa4a-1298-4a49-9346-78d546bc0229"
+	financialTimesBrandUuid = "dbb0bdae-1f0c-11e4-b0cb-b2227cce2b54"
+	fastFtBrandUuid         = "5c7592a8-1f0c-11e4-b0cb-b2227cce2b54"
+	thingsUriPrefix         = "http://api.ft.com/things/"
+)
+
+var contentWithoutABody = content{
+	UUID:  noBodyContentUuid,
+	Title: "Missing Body",
+}
+
+var minimalContent = content{
+	UUID:          minimalContentUuid,
+	Title:         "Content Title",
+	PublishedDate: "1970-01-01T01:00:00.000Z",
+	Body:          "Some body",
+	Brands:        []brand{financialTimesBrand},
+}
+
+var fullContent = content{
+	UUID:          minimalContentUuid,
+	Title:         "Content Title",
+	PublishedDate: "1970-01-01T01:00:00.000Z",
+	Body:          "Fuller body",
+	Brands:        []brand{financialTimesBrand, fastFtBrand},
+}
+
+var financialTimesBrand = brand{
+	Id: thingsUriPrefix + financialTimesBrandUuid,
+}
+
+var fastFtBrand = brand{
+	Id: thingsUriPrefix + fastFtBrandUuid,
+}
+
+var contentDriver baseftrwapp.Service
 
 func TestDelete(t *testing.T) {
 	assert := assert.New(t)
-	uuid := "12345"
+	db := getDatabaseConnectionAndCheckClean(t, assert)
+	contentDriver := getCypherDriver(db)
+	defer cleanDB(db, t, assert)
 
-	contentDriver = getContentCypherDriver(t)
+	assert.NoError(contentDriver.Write(minimalContent), "Failed to write content")
 
-	contentRecieved := content{UUID: uuid, Title: "TestContent", PublishedDate: "1970-01-01T01:00:00.000Z", Body: "Some Test text"}
+	found, err := contentDriver.Delete(minimalContentUuid)
+	assert.True(found, "Didn't manage to delete content for uuid %", minimalContentUuid)
+	assert.NoError(err, "Error deleting content for uuid %s", minimalContentUuid)
 
-	assert.NoError(contentDriver.Write(contentRecieved), "Failed to write content")
+	c, found, err := contentDriver.Read(minimalContentUuid)
 
-	found, err := contentDriver.Delete(uuid)
-	assert.True(found, "Didn't manage to delete content for uuid %", uuid)
-	assert.NoError(err, "Error deleting content for uuid %s", uuid)
-
-	p, found, err := contentDriver.Read(uuid)
-
-	assert.Equal(content{}, p, "Found content %s who should have been deleted", p)
-	assert.False(found, "Found content for uuid %s who should have been deleted", uuid)
-	assert.NoError(err, "Error trying to find content for uuid %s", uuid)
+	assert.Equal(content{}, c, "Found content %s who should have been deleted", c)
+	assert.False(found, "Found content for uuid %s who should have been deleted", minimalContentUuid)
+	assert.NoError(err, "Error trying to find content for uuid %s", minimalContentUuid)
 }
 
 func TestCreateAllValuesPresent(t *testing.T) {
 	assert := assert.New(t)
-	uuid := "12345"
-	contentDriver = getContentCypherDriver(t)
 
-	contentRecieved := content{UUID: uuid, Title: "TestContent", PublishedDate: "1970-01-01T01:00:00.000Z", Body: "Some Test text"}
-	contentToRead := content{UUID: uuid, Title: "TestContent", PublishedDate: "1970-01-01T01:00:00.000Z"}
+	db := getDatabaseConnectionAndCheckClean(t, assert)
+	contentDriver := getCypherDriver(db)
+	defer cleanDB(db, t, assert)
 
-	assert.NoError(contentDriver.Write(contentRecieved), "Failed to write content")
+	assert.NoError(contentDriver.Write(fullContent), "Failed to write content")
 
-	readContentForUUIDAndCheckFieldsMatch(t, uuid, contentToRead)
+	storedContent, _, err := contentDriver.Read(fullContentUuid)
 
-	cleanUp(t, uuid)
+	assert.NoError(err)
+	assert.NotEmpty(storedContent)
 }
 
-func TestCreateHandlesSpecialCharacters(t *testing.T) {
+func TestUpdateWillRemovePropertiesNoLongerPresent(t *testing.T) {
 	assert := assert.New(t)
-	uuid := "12345"
-	contentDriver = getContentCypherDriver(t)
+	db := getDatabaseConnectionAndCheckClean(t, assert)
+	contentDriver := getCypherDriver(db)
+	defer cleanDB(db, t, assert)
 
-	contentRecieved := content{UUID: uuid, Title: "TestContent", PublishedDate: "1970-01-01T01:00:00.000Z", Body: "Some Test text"}
-	contentToRead := content{UUID: uuid, Title: "TestContent", PublishedDate: "1970-01-01T01:00:00.000Z"}
+	assert.NoError(contentDriver.Write(fullContent), "Failed to write content")
+	storedFullContent, _, err := contentDriver.Read(fullContentUuid)
 
-	assert.NoError(contentDriver.Write(contentRecieved), "Failed to write content")
+	assert.NoError(err)
+	assert.NotEmpty(storedFullContent)
 
-	readContentForUUIDAndCheckFieldsMatch(t, uuid, contentToRead)
+	assert.NoError(contentDriver.Write(minimalContent), "Failed to write updated content")
+	storedMinimalContent, _, err := contentDriver.Read(minimalContentUuid)
 
-	cleanUp(t, uuid)
+	assert.NoError(err)
+	assert.NotEmpty(storedMinimalContent)
 }
 
 func TestCreateNotAllValuesPresent(t *testing.T) {
 	assert := assert.New(t)
-	uuid := "12345"
-	contentDriver = getContentCypherDriver(t)
 
-	contentRecieved := content{UUID: uuid, Title: "TestContent", PublishedDate: "1970-01-01T01:00:00.000Z", Body: "Some Test text"}
-	contentToRead := content{UUID: uuid, Title: "TestContent", PublishedDate: "1970-01-01T01:00:00.000Z"}
+	db := getDatabaseConnectionAndCheckClean(t, assert)
+	contentDriver := getCypherDriver(db)
+	defer cleanDB(db, t, assert)
 
-	assert.NoError(contentDriver.Write(contentRecieved), "Failed to write content")
+	assert.NoError(contentDriver.Write(minimalContent), "Failed to write content")
 
-	readContentForUUIDAndCheckFieldsMatch(t, uuid, contentToRead)
+	storedContent, _, err := contentDriver.Read(minimalContentUuid)
 
-	cleanUp(t, uuid)
+	assert.NoError(err)
+	assert.NotEmpty(storedContent)
 }
 
 func TestWriteCalculateEpocCorrectly(t *testing.T) {
 	assert := assert.New(t)
 
-	contentDriver = getContentCypherDriver(t)
+	db := getDatabaseConnectionAndCheckClean(t, assert)
+	contentDriver := getCypherDriver(db)
+	defer cleanDB(db, t, assert)
+
 	uuid := "12345"
 	contentRecieved := content{UUID: uuid, Title: "TestContent", PublishedDate: "1970-01-01T01:00:00.000Z", Body: "Some Test text"}
 	contentDriver.Write(contentRecieved)
@@ -101,13 +146,15 @@ func TestWriteCalculateEpocCorrectly(t *testing.T) {
 	err := contentDriver.cypherRunner.CypherBatch([]*neoism.CypherQuery{getEpocQuery})
 	assert.NoError(err)
 	assert.Equal(3600, result[0].PublishedDateEpoc, "Epoc of 1970-01-01T01:00:00.000Z should be 3600")
-	cleanUp(t, uuid)
 }
 
 func TestWritePrefLabelIsAlsoWrittenAndIsEqualToTitle(t *testing.T) {
 	assert := assert.New(t)
 
-	contentDriver = getContentCypherDriver(t)
+	db := getDatabaseConnectionAndCheckClean(t, assert)
+	contentDriver := getCypherDriver(db)
+	defer cleanDB(db, t, assert)
+
 	uuid := "12345"
 	contentRecieved := content{UUID: uuid, Title: "TestContent", PublishedDate: "1970-01-01T01:00:00.000Z", Body: "Some Test text"}
 	contentDriver.Write(contentRecieved)
@@ -126,20 +173,16 @@ func TestWritePrefLabelIsAlsoWrittenAndIsEqualToTitle(t *testing.T) {
 	err := contentDriver.cypherRunner.CypherBatch([]*neoism.CypherQuery{getPrefLabelQuery})
 	assert.NoError(err)
 	assert.Equal("TestContent", result[0].PrefLabel, "PrefLabel should be 'TestContent")
-	cleanUp(t, uuid)
 }
 
-func readContentForUUIDAndCheckFieldsMatch(t *testing.T, uuid string, expectedContent content) {
-	assert := assert.New(t)
-	storedContent, found, err := contentDriver.Read(uuid)
-
-	assert.NoError(err, "Error finding content for uuid %s", uuid)
-	assert.True(found, "Didn't find content for uuid %s", uuid)
-	assert.Equal(expectedContent, storedContent, "content should be the same")
+func getDatabaseConnectionAndCheckClean(t *testing.T, assert *assert.Assertions) *neoism.Database {
+	db := getDatabaseConnection(assert)
+	cleanDB(db, t, assert)
+	checkDbClean(db, t)
+	return db
 }
 
-func getContentCypherDriver(t *testing.T) CypherDriver {
-	assert := assert.New(t)
+func getDatabaseConnection(assert *assert.Assertions) *neoism.Database {
 	url := os.Getenv("NEO4J_TEST_URL")
 	if url == "" {
 		url = "http://localhost:7474/db/data"
@@ -147,12 +190,46 @@ func getContentCypherDriver(t *testing.T) CypherDriver {
 
 	db, err := neoism.Connect(url)
 	assert.NoError(err, "Failed to connect to Neo4j")
-	return NewCypherDriver(neoutils.StringerDb{db}, db)
+	return db
 }
 
-func cleanUp(t *testing.T, uuid string) {
+func cleanDB(db *neoism.Database, t *testing.T, assert *assert.Assertions) {
+	qs := []*neoism.CypherQuery{
+		{
+			Statement: fmt.Sprintf("MATCH (mc:Thing {uuid: '%v'})-[rel:IS_CLASSIFIED_BY]->(b:Brand) DELETE mc, rel", minimalContentUuid),
+		},
+		{
+			Statement: fmt.Sprintf("MATCH (fc:Thing {uuid: '%v'})-[rel:IS_CLASSIFIED_BY]->(b:Brand) DELETE fc, rel", fullContentUuid),
+		},
+	}
+
+	err := db.CypherBatch(qs)
+	assert.NoError(err)
+}
+
+func checkDbClean(db *neoism.Database, t *testing.T) {
 	assert := assert.New(t)
-	found, err := contentDriver.Delete(uuid)
-	assert.True(found, "Didn't manage to delete content for uuid %", uuid)
-	assert.NoError(err, "Error deleting content for uuid %s", uuid)
+
+	result := []struct {
+		Uuid string `json:"org.uuid"`
+	}{}
+
+	checkGraph := neoism.CypherQuery{
+		Statement: `
+			MATCH (org:Thing) WHERE org.uuid in {uuids} RETURN org.uuid
+		`,
+		Parameters: neoism.Props{
+			"uuids": []string{fullContentUuid, minimalContentUuid},
+		},
+		Result: &result,
+	}
+	err := db.Cypher(&checkGraph)
+	assert.NoError(err)
+	assert.Empty(result)
+}
+
+func getCypherDriver(db *neoism.Database) CypherDriver {
+	cr := NewCypherDriver(neoutils.NewBatchCypherRunner(neoutils.StringerDb{db}, 3), db)
+	cr.Initialise()
+	return cr
 }
