@@ -32,7 +32,6 @@ var minimalContent = content{
 	Title:         "Content Title",
 	PublishedDate: "1970-01-01T01:00:00.000Z",
 	Body:          "Some body",
-	Brands:        []brand{financialTimesBrand},
 }
 
 var fullContent = content{
@@ -62,7 +61,7 @@ func TestDelete(t *testing.T) {
 	assert.NoError(contentDriver.Write(minimalContent), "Failed to write content")
 
 	found, err := contentDriver.Delete(minimalContentUuid)
-	assert.True(found, "Didn't manage to delete content for uuid %", minimalContentUuid)
+	assert.True(found, "Didn't manage to delete content for uuid %s", minimalContentUuid)
 	assert.NoError(err, "Error deleting content for uuid %s", minimalContentUuid)
 
 	c, found, err := contentDriver.Read(minimalContentUuid)
