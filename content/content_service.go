@@ -150,13 +150,14 @@ func (pcd CypherDriver) Write(thing interface{}) error {
 func addBrandsQuery(brandUuid string, contentUuid string) *neoism.CypherQuery {
 	statement := `MATCH (b:Thing{uuid:{brandUuid}})
 						MERGE (c:Thing{uuid:{contentUuid}})
-						MERGE (c)-[:IS_CLASSIFIED_BY]->(b)`
+						MERGE (c)-[rel:IS_CLASSIFIED_BY{platformVersion:{platformVersion}}]->(b)`
 
 	query := &neoism.CypherQuery{
 		Statement: statement,
 		Parameters: map[string]interface{}{
-			"brandUuid":   brandUuid,
-			"contentUuid": contentUuid,
+			"brandUuid":       brandUuid,
+			"contentUuid":     contentUuid,
+			"platformVersion": platformVersion,
 		},
 	}
 	return query
@@ -257,3 +258,7 @@ func (re requestError) Error() string {
 func (re requestError) NoContentReturnedDetails() string {
 	return re.details
 }
+
+const (
+	platformVersion = "v2"
+)
