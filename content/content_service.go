@@ -148,7 +148,7 @@ func (pcd CypherDriver) Write(thing interface{}) error {
 }
 
 func addBrandsQuery(brandUuid string, contentUuid string) *neoism.CypherQuery {
-	statement := `MATCH (b:Thing{uuid:{brandUuid}})
+	statement := `MERGE (b:Thing{uuid:{brandUuid}})
 						MERGE (c:Thing{uuid:{contentUuid}})
 						MERGE (c)-[rel:IS_CLASSIFIED_BY{platformVersion:{platformVersion}}]->(b)`
 
