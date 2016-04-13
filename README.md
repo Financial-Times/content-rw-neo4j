@@ -1,6 +1,6 @@
 # Content Reader/Writer for Neo4j (content-rw-neo4j)
 
-__An API for reading/writing Content into Neo4j. Expects the content json supplied by the ingester. This is the equivalent to the content-writer-sesame but for writing to Neo4j not GraphDB
+__An API for reading/writing Content into Neo4j. Expects the content json supplied by the ingester. This is the equivalent to the content-writer-sesame but for writing to Neo4j not GraphDB__
 
 ## Installation
 
@@ -18,8 +18,6 @@ or update:
 
 All arguments are optional, they default to a local Neo4j install on the default port (7474), application running on port 8080, batchSize of 1024, graphiteTCPAddress of "" (meaning metrics won't be written to Graphite), graphitePrefix of "" and logMetrics false.
 
-NB: the default batchSize is much higher than the throughput the instance data ingester currently can cope with.
-
 ## Updating the model
 Currently we use a subset of the fields that we get from the Ingester but if more fields are needed to be pulled in then update the model.go
 
@@ -31,9 +29,9 @@ Kafka (CMSPublication) => Ingester => content-rw-neo4j
 
 This service is built and deployed via Jenkins.
 
-<a href="http://ftjen10085-lvpr-uk-p:8181/view/JOBS-content-rw-neo4j/job/content-rw-neo4j-build/">Build job</a>
-<a href="http://ftjen10085-lvpr-uk-p:8181/view/JOBS-content-rw-neo4j/job/content-rw-neo4j-deploy-test/">Deploy job to Test</a>
-<a href="http://ftjen10085-lvpr-uk-p:8181/view/JOBS-content-rw-neo4j/job/content-rw-neo4j-deploy-prod/">Deploy job to Prod</a>
+* <a href="http://ftjen10085-lvpr-uk-p:8181/view/JOBS-content-rw-neo4j/job/content-rw-neo4j-build/">Build job</a>
+* <a href="http://ftjen10085-lvpr-uk-p:8181/view/JOBS-content-rw-neo4j/job/content-rw-neo4j-deploy-test/">Deploy job to Test</a>
+* <a href="http://ftjen10085-lvpr-uk-p:8181/view/JOBS-content-rw-neo4j/job/content-rw-neo4j-deploy-prod/">Deploy job to Prod</a>
 
 The build works via git tags. To prepare a new release
 - update the version in /puppet/ft-content_rw_neo4j/Modulefile, e.g. to 0.0.12
