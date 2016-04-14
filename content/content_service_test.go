@@ -179,6 +179,19 @@ func TestWritePrefLabelIsAlsoWrittenAndIsEqualToTitle(t *testing.T) {
 	assert.Equal("TestContent", result[0].PrefLabel, "PrefLabel should be 'TestContent")
 }
 
+func TestContentWontBeWrittenIfNoBody(t *testing.T) {
+	assert := assert.New(t)
+	db := getDatabaseConnectionAndCheckClean(t, assert)
+	contentDriver := getCypherDriver(db)
+	defer cleanDB(db, t, assert)
+
+	assert.NoError(contentDriver.Write(contentWithoutABody), "Failed to write content")
+	storedFullContent, _, err := contentDriver.Read(noBodyContentUuid)
+
+	assert.NoError(err)
+	assert.Equal(content{}, storedFullContent, "No content should be written when the content has no body")
+}
+
 func getDatabaseConnectionAndCheckClean(t *testing.T, assert *assert.Assertions) *neoism.Database {
 	db := getDatabaseConnection(assert)
 	cleanDB(db, t, assert)

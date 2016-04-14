@@ -8,6 +8,7 @@ import (
 
 	"github.com/Financial-Times/neo-model-utils-go/mapper"
 	"github.com/Financial-Times/neo-utils-go/neoutils"
+	log "github.com/Sirupsen/logrus"
 	"github.com/jmcvetta/neoism"
 )
 
@@ -73,13 +74,13 @@ func (pcd CypherDriver) Read(uuid string) (interface{}, bool, error) {
 		brands = append(brands, brand)
 	}
 
-	c := content{
+	contentItem := content{
 		UUID:          result.UUID,
 		Title:         result.Title,
 		PublishedDate: result.PublishedDate,
 		Brands:        brands,
 	}
-	return c, true, nil
+	return contentItem, true, nil
 }
 
 //Write - Writes a content node
@@ -88,7 +89,8 @@ func (pcd CypherDriver) Write(thing interface{}) error {
 
 	// Only Articles have a body
 	if c.Body == "" {
-		return requestError{fmt.Sprintf("There is no body with this content item therefore assuming is it not an Article: %v", c.UUID)}
+		log.Infof("There is no body with this content item therefore assuming is it not an Article: %v", c.UUID)
+		return nil
 	}
 
 	params := map[string]interface{}{
@@ -245,18 +247,6 @@ func (pcd CypherDriver) Count() (int, error) {
 	}
 
 	return results[0].Count, nil
-}
-
-type requestError struct {
-	details string
-}
-
-func (re requestError) Error() string {
-	return "No Content"
-}
-
-func (re requestError) NoContentReturnedDetails() string {
-	return re.details
 }
 
 const (
