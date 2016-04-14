@@ -74,13 +74,13 @@ func (pcd CypherDriver) Read(uuid string) (interface{}, bool, error) {
 		brands = append(brands, brand)
 	}
 
-	c := content{
+	contentItem := content{
 		UUID:          result.UUID,
 		Title:         result.Title,
 		PublishedDate: result.PublishedDate,
 		Brands:        brands,
 	}
-	return c, true, nil
+	return contentItem, true, nil
 }
 
 //Write - Writes a content node
