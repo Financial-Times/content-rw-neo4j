@@ -198,7 +198,7 @@ func TestUpdateWillRemoveRelsWithNoLifeCycle(t *testing.T) {
 	assert.Equal(0, checkClassifedByRelationship(db, conceptUUID, "", t, assert), "incorrect number, of is classified by relationships")
 }
 
-func TestUpdateWillNotRemoveRelsWihNonContentLifeCycle(t *testing.T) {
+func TestUpdateWillNotRemoveRelsWithNonContentLifeCycle(t *testing.T) {
 	assert := assert.New(t)
 	db := getDatabaseConnectionAndCheckClean(t, assert)
 	contentDriver := getCypherDriver(db)
@@ -339,7 +339,6 @@ func cleanDB(db *neoism.Database, t *testing.T, assert *assert.Assertions) {
 }
 
 func writeClassifedByRelationship(db *neoism.Database, contentId string, conceptId string, lifecycle string, t *testing.T, assert *assert.Assertions) {
-
 	var annotateQuery string
 	var qs []*neoism.CypherQuery
 
@@ -371,13 +370,11 @@ func writeClassifedByRelationship(db *neoism.Database, contentId string, concept
 		}
 
 	}
-
 	err := db.CypherBatch(qs)
 	assert.NoError(err)
 }
 
 func checkClassifedByRelationship(db *neoism.Database, conceptId string, lifecycle string, t *testing.T, assert *assert.Assertions) int {
-
 	countQuery := `Match (t:Thing{uuid:{conceptId}})-[r:IS_CLASSIFIED_BY {platformVersion:'v1', lifecycle: {lifecycle}}]-(x) return count(r) as c`
 
 	results := []struct {
