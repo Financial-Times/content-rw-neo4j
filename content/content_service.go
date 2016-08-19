@@ -43,7 +43,10 @@ func (pcd CypherDriver) Read(uuid string) (interface{}, bool, error) {
 
 	query := &neoism.CypherQuery{
 		Statement: `MATCH (n:Content {uuid:{uuid}})
-			OPTIONAL MATCH (n)-[:IS_CLASSIFIED_BY]->(b:Thing) WITH n,collect({id:b.uuid}) as brands
+			OPTIONAL MATCH (n)-[rel:IS_CLASSIFIED_BY]->(b:Thing)
+				WHERE rel.lifecycle IS NULL
+				OR rel.lifecycle = "content"
+			WITH n,collect({id:b.uuid}) as brands
 			return n.uuid as uuid, n.title as title, n.publishedDate as publishedDate, brands`,
 		Parameters: map[string]interface{}{
 			"uuid": uuid,
@@ -116,6 +119,8 @@ func (pcd CypherDriver) Write(thing interface{}) error {
 	deleteEntityRelationshipsQuery := &neoism.CypherQuery{
 		Statement: `MATCH (t:Thing {uuid:{uuid}})
 				MATCH (b:Thing)<-[rel:IS_CLASSIFIED_BY]-(t)
+					WHERE rel.lifecycle = "content"
+					OR rel.lifecycle IS NULL
 				DELETE rel`,
 		Parameters: map[string]interface{}{
 			"uuid": c.UUID,
@@ -152,7 +157,7 @@ func (pcd CypherDriver) Write(thing interface{}) error {
 func addBrandsQuery(brandUuid string, contentUuid string) *neoism.CypherQuery {
 	statement := `MERGE (b:Thing{uuid:{brandUuid}})
 						MERGE (c:Thing{uuid:{contentUuid}})
-						MERGE (c)-[rel:IS_CLASSIFIED_BY{platformVersion:{platformVersion}}]->(b)`
+						MERGE (c)-[rel:IS_CLASSIFIED_BY{platformVersion:{platformVersion}, lifecycle: "content"}]->(b)`
 
 	query := &neoism.CypherQuery{
 		Statement: statement,
@@ -179,6 +184,8 @@ func (pcd CypherDriver) Delete(uuid string) (bool, error) {
 		Statement: `
 			MATCH (p:Thing {uuid: {uuid}})
 			OPTIONAL MATCH (p)-[rel:IS_CLASSIFIED_BY]->(b:Thing)
+				WHERE rel.lifecycle IS NULL
+				OR rel.lifecycle = "content"
 			REMOVE p:Content
 			DELETE rel
 			SET p={props}
