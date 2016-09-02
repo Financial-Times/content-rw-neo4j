@@ -324,7 +324,7 @@ func getDatabaseConnection(assert *assert.Assertions) *neoism.Database {
 	return db
 }
 
-func cleanDB(db *neoism.Database, t *testing.T, assert *assert.Assertions) {
+func cleanDB(db neoutils.CypherRunner, t *testing.T, assert *assert.Assertions) {
 	qs := []*neoism.CypherQuery{
 		{
 			Statement: fmt.Sprintf("MATCH (mc:Thing {uuid: '%v'}) DETACH DELETE mc", minimalContentUuid),
@@ -347,7 +347,7 @@ func writeClassifedByRelationship(db *neoism.Database, contentId string, concept
                 MERGE (content:Thing{uuid:{contentId}})
                 MERGE (upp:Identifier:UPPIdentifier{value:{conceptId}})
                 MERGE (upp)-[:IDENTIFIES]->(concept:Thing) ON CREATE SET concept.uuid = {conceptId}
-                MERGE (content)-[pred:IS_CLASSIFIED_BY {platformVersion:'v1'}]->(concept)              
+                MERGE (content)-[pred:IS_CLASSIFIED_BY {platformVersion:'v1'}]->(concept)
           `
 		qs = []*neoism.CypherQuery{
 			{
@@ -393,7 +393,7 @@ func checkClassifedByRelationship(db *neoism.Database, conceptId string, lifecyc
 	return results[0].Count
 }
 
-func checkDbClean(db *neoism.Database, t *testing.T) {
+func checkDbClean(db neoutils.CypherRunner, t *testing.T) {
 	assert := assert.New(t)
 
 	result := []struct {
@@ -409,7 +409,7 @@ func checkDbClean(db *neoism.Database, t *testing.T) {
 		},
 		Result: &result,
 	}
-	err := db.Cypher(&checkGraph)
+	err := db.CypherBatch([]*neoism.CypherQuery{&checkGraph})
 	assert.NoError(err)
 	assert.Empty(result)
 }
