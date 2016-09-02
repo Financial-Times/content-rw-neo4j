@@ -16,7 +16,7 @@ var uuidExtractRegex = regexp.MustCompile(".*/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{
 
 // CypherDriver - CypherDriver
 type service struct {
-	cypherRunner neoutils.NeoConnection
+	conn neoutils.NeoConnection
 }
 
 //NewCypherDriver instantiate driver
@@ -27,7 +27,7 @@ func NewCypherContentService(cypherRunner neoutils.NeoConnection) service {
 //Initialise initialisation of the indexes
 func (cd service) Initialise() error {
 
-	err := cd.cypherRunner.EnsureIndexes(map[string]string{
+	err := cd.conn.EnsureIndexes(map[string]string{
 		"Identifier": "value",
 	})
 
@@ -35,13 +35,13 @@ func (cd service) Initialise() error {
 		return err
 	}
 
-	return cd.cypherRunner.EnsureConstraints(map[string]string{
+	return cd.conn.EnsureConstraints(map[string]string{
 		"Content":     	 "uuid",
 		"Brand":         "uuid"})
 }
 // Check - Feeds into the Healthcheck and checks whether we can connect to Neo and that the datastore isn't empty
 func (pcd service) Check() error {
-	return neoutils.Check(pcd.cypherRunner)
+	return neoutils.Check(pcd.conn)
 }
 
 // Read - reads a content given a UUID
@@ -63,7 +63,7 @@ func (pcd service) Read(uuid string) (interface{}, bool, error) {
 		Result: &results,
 	}
 
-	err := pcd.cypherRunner.CypherBatch([]*neoism.CypherQuery{query})
+	err := pcd.conn.CypherBatch([]*neoism.CypherQuery{query})
 
 	if err != nil {
 		return content{}, false, err
@@ -160,7 +160,7 @@ func (pcd service) Write(thing interface{}) error {
 	}
 	queries = append(queries, writeContentQuery)
 
-	return pcd.cypherRunner.CypherBatch(queries)
+	return pcd.conn.CypherBatch(queries)
 }
 
 func addBrandsQuery(brandUuid string, contentUuid string) *neoism.CypherQuery {
@@ -221,7 +221,7 @@ func (pcd service) Delete(uuid string) (bool, error) {
 		},
 	}
 
-	err := pcd.cypherRunner.CypherBatch([]*neoism.CypherQuery{clearNode, removeNodeIfUnused})
+	err := pcd.conn.CypherBatch([]*neoism.CypherQuery{clearNode, removeNodeIfUnused})
 
 	s1, err := clearNode.Stats()
 	if err != nil {
@@ -256,7 +256,7 @@ func (pcd service) Count() (int, error) {
 		Result:    &results,
 	}
 
-	err := pcd.cypherRunner.CypherBatch([]*neoism.CypherQuery{query})
+	err := pcd.conn.CypherBatch([]*neoism.CypherQuery{query})
 
 	if err != nil {
 		return 0, err

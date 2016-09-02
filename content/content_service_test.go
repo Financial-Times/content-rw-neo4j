@@ -261,7 +261,7 @@ func TestWriteCalculateEpocCorrectly(t *testing.T) {
 		Result: &result,
 	}
 
-	err := contentDriver.cypherRunner.CypherBatch([]*neoism.CypherQuery{getEpocQuery})
+	err := contentDriver.conn.CypherBatch([]*neoism.CypherQuery{getEpocQuery})
 	assert.NoError(err)
 	assert.Equal(3600, result[0].PublishedDateEpoc, "Epoc of 1970-01-01T01:00:00.000Z should be 3600")
 }
@@ -288,7 +288,7 @@ func TestWritePrefLabelIsAlsoWrittenAndIsEqualToTitle(t *testing.T) {
 		Result: &result,
 	}
 
-	err := contentDriver.cypherRunner.CypherBatch([]*neoism.CypherQuery{getPrefLabelQuery})
+	err := contentDriver.conn.CypherBatch([]*neoism.CypherQuery{getPrefLabelQuery})
 	assert.NoError(err)
 	assert.Equal("TestContent", result[0].PrefLabel, "PrefLabel should be 'TestContent")
 }
