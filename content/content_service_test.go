@@ -247,8 +247,8 @@ func TestWriteCalculateEpocCorrectly(t *testing.T) {
 	defer cleanDB(db, t, assert)
 
 	uuid := "12345"
-	contentRecieved := content{UUID: uuid, Title: "TestContent", PublishedDate: "1970-01-01T01:00:00.000Z", Body: "Some Test text"}
-	contentDriver.Write(contentRecieved)
+	contentReceived := content{UUID: uuid, Title: "TestContent", PublishedDate: "1970-01-01T01:00:00.000Z", Body: "Some Test text"}
+	contentDriver.Write(contentReceived)
 
 	result := []struct {
 		PublishedDateEpoc int `json:"t.publishedDateEpoch"`
@@ -377,7 +377,9 @@ func writeClassifedByRelationship(db neoutils.NeoConnection, contentId string, c
 }
 
 func checkClassifedByRelationship(db neoutils.NeoConnection, conceptId string, lifecycle string, t *testing.T, assert *assert.Assertions) int {
-	countQuery := `Match (t:Thing{uuid:{conceptId}})-[r:IS_CLASSIFIED_BY {platformVersion:'v1', lifecycle: {lifecycle}}]-(x) return count(r) as c`
+	countQuery := `	MATCH (t:Thing{uuid:{conceptId}})-[r:IS_CLASSIFIED_BY {platformVersion:'v1', lifecycle: {lifecycle}}]-(x)
+			MATCH (t)<-[:IDENTIFIES]-(s:Identifier:UPPIdentifier)
+			RETURN count(r) as c`
 
 	results := []struct {
 		Count int `json:"c"`

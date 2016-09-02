@@ -148,8 +148,8 @@ func (pcd service) Write(thing interface{}) error {
 	}
 
 	statement := `MERGE (n:Thing {uuid: {uuid}})
-										set n={allprops}
-										set n :Content`
+		      set n={allprops}
+		      set n :Content`
 
 	writeContentQuery := &neoism.CypherQuery{
 		Statement: statement,
@@ -164,9 +164,12 @@ func (pcd service) Write(thing interface{}) error {
 }
 
 func addBrandsQuery(brandUuid string, contentUuid string) *neoism.CypherQuery {
-	statement := `MERGE (b:Thing{uuid:{brandUuid}})
-						MERGE (c:Thing{uuid:{contentUuid}})
-						MERGE (c)-[rel:IS_CLASSIFIED_BY{platformVersion:{platformVersion}, lifecycle: "content"}]->(b)`
+	statement := `	MERGE (brandIdentifier:Identifier:UPPIdentifier{value:{brandUuid}})
+			MERGE(brand:Thing{uuid:{brandUuid}})
+			MERGE(brandIdentifier)-[:IDENTIFIES]->(brand)
+			ON CREATE SET brandIdentifier.uuid = {brandUuid}
+			MERGE(content:Thing{uuid:{contentUuid}})
+			MERGE(content)-[rel:IS_CLASSIFIED_BY{platformVersion:{platformVersion}, lifecycle: "content"}]->(brand)`
 
 	query := &neoism.CypherQuery{
 		Statement: statement,
