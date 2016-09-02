@@ -11,8 +11,6 @@ import (
 	"github.com/Financial-Times/neo-utils-go/neoutils"
 	log "github.com/Sirupsen/logrus"
 	"github.com/jawher/mow.cli"
-	"github.com/jmcvetta/neoism"
-	"net/http"
 )
 
 func main() {
@@ -30,28 +28,29 @@ func main() {
 	logMetrics := app.BoolOpt("logMetrics", false, "Whether to log metrics. Set to true if running locally and you want metrics output")
 
 	app.Action = func() {
-		db, err := neoism.Connect(*neoURL)
-		db.Session.Client = &http.Client{Transport: &http.Transport{MaxIdleConnsPerHost: 100}}
+		conf := neoutils.DefaultConnectionConfig()
+		conf.BatchSize = *batchSize
+		db, err := neoutils.Connect(*neoURL, conf)
+
 		if err != nil {
 			log.Errorf("Could not connect to neo4j, error=[%s]\n", err)
 		}
 
-		batchRunner := neoutils.NewBatchCypherRunner(neoutils.StringerDb{db}, *batchSize)
-		contentDriver := content.NewCypherDriver(batchRunner, db)
+		contentDriver := content.NewCypherContentService(db)
 		contentDriver.Initialise()
 
 		baseftrwapp.OutputMetricsIfRequired(*graphiteTCPAddress, *graphitePrefix, *logMetrics)
 
-		engs := map[string]baseftrwapp.Service{
+		services := map[string]baseftrwapp.Service{
 			"content": contentDriver,
 		}
 
 		var checks []v1a.Check
-		for _, e := range engs {
-			checks = append(checks, makeCheck(e, batchRunner))
+		for _, service := range services {
+			checks = append(checks, makeCheck(service, db))
 		}
 
-		baseftrwapp.RunServer(engs,
+		baseftrwapp.RunServer(services,
 			v1a.Handler("ft-content_rw_neo4j ServiceModule", "Writes 'content' to Neo4j, usually as part of a bulk upload done on a schedule", checks...),
 			*port, "content-rw-neo4j", *env)
 	}

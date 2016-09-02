@@ -306,20 +306,22 @@ func TestContentWontBeWrittenIfNoBody(t *testing.T) {
 	assert.Equal(content{}, storedFullContent, "No content should be written when the content has no body")
 }
 
-func getDatabaseConnectionAndCheckClean(t *testing.T, assert *assert.Assertions) *neoism.Database {
+func getDatabaseConnectionAndCheckClean(t *testing.T, assert *assert.Assertions) neoutils.NeoConnection{
 	db := getDatabaseConnection(assert)
 	cleanDB(db, t, assert)
 	checkDbClean(db, t)
 	return db
 }
 
-func getDatabaseConnection(assert *assert.Assertions) *neoism.Database {
+func getDatabaseConnection(assert *assert.Assertions) neoutils.NeoConnection {
 	url := os.Getenv("NEO4J_TEST_URL")
 	if url == "" {
 		url = "http://localhost:7474/db/data"
 	}
 
-	db, err := neoism.Connect(url)
+	conf := neoutils.DefaultConnectionConfig()
+	conf.Transactional = false
+	db, err := neoutils.Connect(url, conf)
 	assert.NoError(err, "Failed to connect to Neo4j")
 	return db
 }
@@ -338,7 +340,7 @@ func cleanDB(db neoutils.CypherRunner, t *testing.T, assert *assert.Assertions) 
 	assert.NoError(err)
 }
 
-func writeClassifedByRelationship(db *neoism.Database, contentId string, conceptId string, lifecycle string, t *testing.T, assert *assert.Assertions) {
+func writeClassifedByRelationship(db neoutils.NeoConnection, contentId string, conceptId string, lifecycle string, t *testing.T, assert *assert.Assertions) {
 	var annotateQuery string
 	var qs []*neoism.CypherQuery
 
@@ -374,7 +376,7 @@ func writeClassifedByRelationship(db *neoism.Database, contentId string, concept
 	assert.NoError(err)
 }
 
-func checkClassifedByRelationship(db *neoism.Database, conceptId string, lifecycle string, t *testing.T, assert *assert.Assertions) int {
+func checkClassifedByRelationship(db neoutils.NeoConnection, conceptId string, lifecycle string, t *testing.T, assert *assert.Assertions) int {
 	countQuery := `Match (t:Thing{uuid:{conceptId}})-[r:IS_CLASSIFIED_BY {platformVersion:'v1', lifecycle: {lifecycle}}]-(x) return count(r) as c`
 
 	results := []struct {
@@ -414,8 +416,8 @@ func checkDbClean(db neoutils.CypherRunner, t *testing.T) {
 	assert.Empty(result)
 }
 
-func getCypherDriver(db *neoism.Database) CypherDriver {
-	cr := NewCypherDriver(neoutils.NewBatchCypherRunner(neoutils.StringerDb{db}, 3), db)
+func getCypherDriver(db neoutils.NeoConnection) service {
+	cr := NewCypherContentService(db)
 	cr.Initialise()
 	return cr
 }

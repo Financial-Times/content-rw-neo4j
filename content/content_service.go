@@ -15,28 +15,37 @@ import (
 var uuidExtractRegex = regexp.MustCompile(".*/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$")
 
 // CypherDriver - CypherDriver
-type CypherDriver struct {
-	cypherRunner neoutils.CypherRunner
-	indexManager neoutils.IndexManager
+type service struct {
+	cypherRunner neoutils.NeoConnection
 }
 
 //NewCypherDriver instantiate driver
-func NewCypherDriver(cypherRunner neoutils.CypherRunner, indexManager neoutils.IndexManager) CypherDriver {
-	return CypherDriver{cypherRunner, indexManager}
+func NewCypherContentService(cypherRunner neoutils.NeoConnection) service {
+	return service{cypherRunner}
 }
 
 //Initialise initialisation of the indexes
-func (pcd CypherDriver) Initialise() error {
-	return neoutils.EnsureConstraints(pcd.indexManager, map[string]string{"Content": "uuid"})
-}
+func (cd service) Initialise() error {
 
+	err := cd.cypherRunner.EnsureIndexes(map[string]string{
+		"Identifier": "value",
+	})
+
+	if err != nil {
+		return err
+	}
+
+	return cd.cypherRunner.EnsureConstraints(map[string]string{
+		"Content":     	 "uuid",
+		"Brand":         "uuid"})
+}
 // Check - Feeds into the Healthcheck and checks whether we can connect to Neo and that the datastore isn't empty
-func (pcd CypherDriver) Check() error {
+func (pcd service) Check() error {
 	return neoutils.Check(pcd.cypherRunner)
 }
 
 // Read - reads a content given a UUID
-func (pcd CypherDriver) Read(uuid string) (interface{}, bool, error) {
+func (pcd service) Read(uuid string) (interface{}, bool, error) {
 	results := []struct {
 		content
 	}{}
@@ -87,7 +96,7 @@ func (pcd CypherDriver) Read(uuid string) (interface{}, bool, error) {
 }
 
 //Write - Writes a content node
-func (pcd CypherDriver) Write(thing interface{}) error {
+func (pcd service) Write(thing interface{}) error {
 	c := thing.(content)
 
 	// Only Articles have a body
@@ -179,7 +188,7 @@ func extractUUIDFromURI(uri string) (string, error) {
 }
 
 //Delete - Deletes a content
-func (pcd CypherDriver) Delete(uuid string) (bool, error) {
+func (pcd service) Delete(uuid string) (bool, error) {
 	clearNode := &neoism.CypherQuery{
 		Statement: `
 			MATCH (p:Thing {uuid: {uuid}})
@@ -228,7 +237,7 @@ func (pcd CypherDriver) Delete(uuid string) (bool, error) {
 }
 
 // DecodeJSON - Decodes JSON into content
-func (pcd CypherDriver) DecodeJSON(dec *json.Decoder) (interface{}, string, error) {
+func (pcd service) DecodeJSON(dec *json.Decoder) (interface{}, string, error) {
 	c := content{}
 	err := dec.Decode(&c)
 	return c, c.UUID, err
@@ -236,7 +245,7 @@ func (pcd CypherDriver) DecodeJSON(dec *json.Decoder) (interface{}, string, erro
 }
 
 // Count - Returns a count of the number of content in this Neo instance
-func (pcd CypherDriver) Count() (int, error) {
+func (pcd service) Count() (int, error) {
 
 	results := []struct {
 		Count int `json:"c"`
