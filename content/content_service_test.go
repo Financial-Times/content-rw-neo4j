@@ -274,8 +274,8 @@ func TestWritePrefLabelIsAlsoWrittenAndIsEqualToTitle(t *testing.T) {
 	defer cleanDB(db, t, assert)
 
 	uuid := "12345"
-	contentRecieved := content{UUID: uuid, Title: "TestContent", PublishedDate: "1970-01-01T01:00:00.000Z", Body: "Some Test text"}
-	contentDriver.Write(contentRecieved)
+	contentReceived := content{UUID: uuid, Title: "TestContent", PublishedDate: "1970-01-01T01:00:00.000Z", Body: "Some Test text"}
+	contentDriver.Write(contentReceived)
 
 	result := []struct {
 		PrefLabel string `json:"t.prefLabel"`
