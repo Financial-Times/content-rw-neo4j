@@ -247,8 +247,8 @@ func TestWriteCalculateEpocCorrectly(t *testing.T) {
 	defer cleanDB(db, t, assert)
 
 	uuid := "12345"
-	contentRecieved := content{UUID: uuid, Title: "TestContent", PublishedDate: "1970-01-01T01:00:00.000Z", Body: "Some Test text"}
-	contentDriver.Write(contentRecieved)
+	contentReceived := content{UUID: uuid, Title: "TestContent", PublishedDate: "1970-01-01T01:00:00.000Z", Body: "Some Test text"}
+	contentDriver.Write(contentReceived)
 
 	result := []struct {
 		PublishedDateEpoc int `json:"t.publishedDateEpoch"`
@@ -261,7 +261,7 @@ func TestWriteCalculateEpocCorrectly(t *testing.T) {
 		Result: &result,
 	}
 
-	err := contentDriver.cypherRunner.CypherBatch([]*neoism.CypherQuery{getEpocQuery})
+	err := contentDriver.conn.CypherBatch([]*neoism.CypherQuery{getEpocQuery})
 	assert.NoError(err)
 	assert.Equal(3600, result[0].PublishedDateEpoc, "Epoc of 1970-01-01T01:00:00.000Z should be 3600")
 }
@@ -274,8 +274,8 @@ func TestWritePrefLabelIsAlsoWrittenAndIsEqualToTitle(t *testing.T) {
 	defer cleanDB(db, t, assert)
 
 	uuid := "12345"
-	contentRecieved := content{UUID: uuid, Title: "TestContent", PublishedDate: "1970-01-01T01:00:00.000Z", Body: "Some Test text"}
-	contentDriver.Write(contentRecieved)
+	contentReceived := content{UUID: uuid, Title: "TestContent", PublishedDate: "1970-01-01T01:00:00.000Z", Body: "Some Test text"}
+	contentDriver.Write(contentReceived)
 
 	result := []struct {
 		PrefLabel string `json:"t.prefLabel"`
@@ -288,7 +288,7 @@ func TestWritePrefLabelIsAlsoWrittenAndIsEqualToTitle(t *testing.T) {
 		Result: &result,
 	}
 
-	err := contentDriver.cypherRunner.CypherBatch([]*neoism.CypherQuery{getPrefLabelQuery})
+	err := contentDriver.conn.CypherBatch([]*neoism.CypherQuery{getPrefLabelQuery})
 	assert.NoError(err)
 	assert.Equal("TestContent", result[0].PrefLabel, "PrefLabel should be 'TestContent")
 }
@@ -306,25 +306,27 @@ func TestContentWontBeWrittenIfNoBody(t *testing.T) {
 	assert.Equal(content{}, storedFullContent, "No content should be written when the content has no body")
 }
 
-func getDatabaseConnectionAndCheckClean(t *testing.T, assert *assert.Assertions) *neoism.Database {
+func getDatabaseConnectionAndCheckClean(t *testing.T, assert *assert.Assertions) neoutils.NeoConnection{
 	db := getDatabaseConnection(assert)
 	cleanDB(db, t, assert)
 	checkDbClean(db, t)
 	return db
 }
 
-func getDatabaseConnection(assert *assert.Assertions) *neoism.Database {
+func getDatabaseConnection(assert *assert.Assertions) neoutils.NeoConnection {
 	url := os.Getenv("NEO4J_TEST_URL")
 	if url == "" {
 		url = "http://localhost:7474/db/data"
 	}
 
-	db, err := neoism.Connect(url)
+	conf := neoutils.DefaultConnectionConfig()
+	conf.Transactional = false
+	db, err := neoutils.Connect(url, conf)
 	assert.NoError(err, "Failed to connect to Neo4j")
 	return db
 }
 
-func cleanDB(db *neoism.Database, t *testing.T, assert *assert.Assertions) {
+func cleanDB(db neoutils.CypherRunner, t *testing.T, assert *assert.Assertions) {
 	qs := []*neoism.CypherQuery{
 		{
 			Statement: fmt.Sprintf("MATCH (mc:Thing {uuid: '%v'}) DETACH DELETE mc", minimalContentUuid),
@@ -338,7 +340,7 @@ func cleanDB(db *neoism.Database, t *testing.T, assert *assert.Assertions) {
 	assert.NoError(err)
 }
 
-func writeClassifedByRelationship(db *neoism.Database, contentId string, conceptId string, lifecycle string, t *testing.T, assert *assert.Assertions) {
+func writeClassifedByRelationship(db neoutils.NeoConnection, contentId string, conceptId string, lifecycle string, t *testing.T, assert *assert.Assertions) {
 	var annotateQuery string
 	var qs []*neoism.CypherQuery
 
@@ -347,7 +349,7 @@ func writeClassifedByRelationship(db *neoism.Database, contentId string, concept
                 MERGE (content:Thing{uuid:{contentId}})
                 MERGE (upp:Identifier:UPPIdentifier{value:{conceptId}})
                 MERGE (upp)-[:IDENTIFIES]->(concept:Thing) ON CREATE SET concept.uuid = {conceptId}
-                MERGE (content)-[pred:IS_CLASSIFIED_BY {platformVersion:'v1'}]->(concept)              
+                MERGE (content)-[pred:IS_CLASSIFIED_BY {platformVersion:'v1'}]->(concept)
           `
 		qs = []*neoism.CypherQuery{
 			{
@@ -374,8 +376,10 @@ func writeClassifedByRelationship(db *neoism.Database, contentId string, concept
 	assert.NoError(err)
 }
 
-func checkClassifedByRelationship(db *neoism.Database, conceptId string, lifecycle string, t *testing.T, assert *assert.Assertions) int {
-	countQuery := `Match (t:Thing{uuid:{conceptId}})-[r:IS_CLASSIFIED_BY {platformVersion:'v1', lifecycle: {lifecycle}}]-(x) return count(r) as c`
+func checkClassifedByRelationship(db neoutils.NeoConnection, conceptId string, lifecycle string, t *testing.T, assert *assert.Assertions) int {
+	countQuery := `	MATCH (t:Thing{uuid:{conceptId}})-[r:IS_CLASSIFIED_BY {platformVersion:'v1', lifecycle: {lifecycle}}]-(x)
+			MATCH (t)<-[:IDENTIFIES]-(s:Identifier:UPPIdentifier)
+			RETURN count(r) as c`
 
 	results := []struct {
 		Count int `json:"c"`
@@ -393,7 +397,7 @@ func checkClassifedByRelationship(db *neoism.Database, conceptId string, lifecyc
 	return results[0].Count
 }
 
-func checkDbClean(db *neoism.Database, t *testing.T) {
+func checkDbClean(db neoutils.CypherRunner, t *testing.T) {
 	assert := assert.New(t)
 
 	result := []struct {
@@ -409,13 +413,13 @@ func checkDbClean(db *neoism.Database, t *testing.T) {
 		},
 		Result: &result,
 	}
-	err := db.Cypher(&checkGraph)
+	err := db.CypherBatch([]*neoism.CypherQuery{&checkGraph})
 	assert.NoError(err)
 	assert.Empty(result)
 }
 
-func getCypherDriver(db *neoism.Database) CypherDriver {
-	cr := NewCypherDriver(neoutils.NewBatchCypherRunner(neoutils.StringerDb{db}, 3), db)
+func getCypherDriver(db neoutils.NeoConnection) service {
+	cr := NewCypherContentService(db)
 	cr.Initialise()
 	return cr
 }
