@@ -306,7 +306,7 @@ func TestContentWontBeWrittenIfNoBody(t *testing.T) {
 	assert.Equal(content{}, storedFullContent, "No content should be written when the content has no body")
 }
 
-func getDatabaseConnectionAndCheckClean(t *testing.T, assert *assert.Assertions) neoutils.NeoConnection{
+func getDatabaseConnectionAndCheckClean(t *testing.T, assert *assert.Assertions) neoutils.NeoConnection {
 	db := getDatabaseConnection(assert)
 	cleanDB(db, t, assert)
 	checkDbClean(db, t)
