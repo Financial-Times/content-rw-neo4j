@@ -36,9 +36,10 @@ func (cd service) Initialise() error {
 	}
 
 	return cd.conn.EnsureConstraints(map[string]string{
-		"Content":     	 "uuid",
-		"Brand":         "uuid"})
+		"Content": "uuid",
+		"Brand":   "uuid"})
 }
+
 // Check - Feeds into the Healthcheck and checks whether we can connect to Neo and that the datastore isn't empty
 func (pcd service) Check() error {
 	return neoutils.Check(pcd.conn)
