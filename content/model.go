@@ -5,9 +5,4 @@ type content struct {
 	Title         string  `json:"title,omitempty"`
 	PublishedDate string  `json:"publishedDate,omitempty"`
 	Body          string  `json:"body,omitempty"`
-	Brands        []brand `json:"brands,omitempty"`
-}
-
-type brand struct {
-	Id string `json:"id"`
 }
