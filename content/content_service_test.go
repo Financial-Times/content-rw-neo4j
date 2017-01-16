@@ -257,9 +257,7 @@ func TestWritePrefLabelIsAlsoWrittenAndIsEqualToTitle(t *testing.T) {
 	contentDriver := getCypherDriver(db)
 	defer cleanDB(db, t, assert)
 
-	uuid := "12345"
-	contentReceived := content{UUID: uuid, Title: "TestContent", PublishedDate: "1970-01-01T01:00:00.000Z", Body: "Some Test text"}
-	contentDriver.Write(contentReceived)
+	contentDriver.Write(standardContent)
 
 	result := []struct {
 		PrefLabel string `json:"t.prefLabel"`
@@ -267,14 +265,18 @@ func TestWritePrefLabelIsAlsoWrittenAndIsEqualToTitle(t *testing.T) {
 
 	getPrefLabelQuery := &neoism.CypherQuery{
 		Statement: `
-				MATCH (t:Content {uuid:"12345"}) RETURN t.prefLabel
+				MATCH (t:Content {uuid:{uuid}}) RETURN t.prefLabel
 				`,
+		Parameters: neoism.Props{
+			"uuid": standardContent.UUID,
+		},
 		Result: &result,
 	}
 
 	err := contentDriver.conn.CypherBatch([]*neoism.CypherQuery{getPrefLabelQuery})
 	assert.NoError(err)
-	assert.Equal("TestContent", result[0].PrefLabel, "PrefLabel should be 'TestContent")
+
+	assert.Equal(standardContent.Title, result[0].PrefLabel, "PrefLabel should be 'Content Title'")
 }
 
 func TestContentWontBeWrittenIfNoBody(t *testing.T) {
