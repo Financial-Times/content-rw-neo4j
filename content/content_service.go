@@ -2,11 +2,9 @@ package content
 
 import (
 	"encoding/json"
-	"fmt"
 	"regexp"
 	"time"
 
-	//"github.com/Financial-Times/neo-model-utils-go/mapper"
 	"github.com/Financial-Times/neo-utils-go/neoutils"
 	log "github.com/Sirupsen/logrus"
 	"github.com/jmcvetta/neoism"
@@ -139,33 +137,6 @@ func (pcd service) Write(thing interface{}) error {
 	return pcd.conn.CypherBatch(queries)
 }
 
-func addBrandsQuery(brandUuid string, contentUuid string) *neoism.CypherQuery {
-	statement := `	MERGE (brandIdentifier:Identifier:UPPIdentifier{value:{brandUuid}})
-			MERGE(brand:Thing{uuid:{brandUuid}})
-			MERGE(brandIdentifier)-[:IDENTIFIES]->(brand)
-			ON CREATE SET brandIdentifier.uuid = {brandUuid}
-			MERGE(content:Thing{uuid:{contentUuid}})
-			MERGE(content)-[rel:IS_CLASSIFIED_BY{platformVersion:{platformVersion}, lifecycle: "content"}]->(brand)`
-
-	query := &neoism.CypherQuery{
-		Statement: statement,
-		Parameters: map[string]interface{}{
-			"brandUuid":       brandUuid,
-			"contentUuid":     contentUuid,
-			"platformVersion": platformVersion,
-		},
-	}
-	return query
-}
-
-func extractUUIDFromURI(uri string) (string, error) {
-	result := uuidExtractRegex.FindStringSubmatch(uri)
-	if len(result) == 2 {
-		return result[1], nil
-	}
-	return "", fmt.Errorf("Couldn't extract uuid from uri %s", uri)
-}
-
 //Delete - Deletes a content
 func (pcd service) Delete(uuid string) (bool, error) {
 	clearNode := &neoism.CypherQuery{
@@ -247,3 +218,4 @@ func (pcd service) Count() (int, error) {
 const (
 	platformVersion = "v2"
 )
+
