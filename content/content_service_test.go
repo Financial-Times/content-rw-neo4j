@@ -230,9 +230,7 @@ func TestWriteCalculateEpocCorrectly(t *testing.T) {
 	contentDriver := getCypherDriver(db)
 	defer cleanDB(db, t, assert)
 
-	uuid := "12345"
-	contentReceived := content{UUID: uuid, Title: "TestContent", PublishedDate: "1970-01-01T01:00:00.000Z", Body: "Some Test text"}
-	contentDriver.Write(contentReceived)
+	contentDriver.Write(standardContent)
 
 	result := []struct {
 		PublishedDateEpoc int `json:"t.publishedDateEpoch"`
@@ -240,8 +238,11 @@ func TestWriteCalculateEpocCorrectly(t *testing.T) {
 
 	getEpocQuery := &neoism.CypherQuery{
 		Statement: `
-			MATCH (t:Content {uuid:"12345"}) RETURN t.publishedDateEpoch
+			MATCH (t:Content {uuid:{uuid}}) RETURN t.publishedDateEpoch
 			`,
+		Parameters: neoism.Props{
+			"uuid": standardContent.UUID,
+		},
 		Result: &result,
 	}
 
