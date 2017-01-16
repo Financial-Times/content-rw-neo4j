@@ -208,21 +208,6 @@ func TestUpdateWillNotRemoveRelsWithNonContentLifeCycle(t *testing.T) {
 	assert.Equal(1, checkClassifedByRelationship(db, conceptUUID, "annotations-v1", t, assert), "incorrect number, of is classified by relationships")
 }
 
-func TestCreateNotAllValuesPresent(t *testing.T) {
-	assert := assert.New(t)
-
-	db := getDatabaseConnectionAndCheckClean(t, assert)
-	contentDriver := getCypherDriver(db)
-	defer cleanDB(db, t, assert)
-
-	assert.NoError(contentDriver.Write(standardContent), "Failed to write content")
-
-	storedContent, _, err := contentDriver.Read(standardContentUuid)
-
-	assert.NoError(err)
-	assert.NotEmpty(storedContent)
-}
-
 func TestWriteCalculateEpocCorrectly(t *testing.T) {
 	assert := assert.New(t)
 
