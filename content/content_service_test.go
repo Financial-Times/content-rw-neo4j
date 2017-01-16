@@ -14,18 +14,16 @@ import (
 )
 
 const (
-	standardContentUuid = "ce3f2f5e-33d1-4c36-89e3-51aa00fd5660"
-	noBodyContentUuid       = "6440aa4a-1298-4a49-9346-78d546bc0229"
 	conceptUUID             = "412e4ca3-f8d5-4456-8606-064c1dba3c45"
 )
 
 var contentWithoutABody = content{
-	UUID:  noBodyContentUuid,
+	UUID:  "noBodyContentUuid",
 	Title: "Missing Body",
 }
 
 var standardContent = content{
-	UUID:          standardContentUuid,
+	UUID:          "contentUUID",
 	Title:         "Content Title",
 	PublishedDate: "1970-01-01T01:00:00.000Z",
 	Body:          "Some body",
@@ -33,62 +31,63 @@ var standardContent = content{
 
 var contentDriver baseftrwapp.Service
 
+
 func TestDelete(t *testing.T) {
 	assert := assert.New(t)
 	db := getDatabaseConnectionAndCheckClean(t, assert)
 	contentDriver := getCypherDriver(db)
-	defer cleanDB(db, t, assert)
+	defer deleteContentNodeAndAllRelationships(db, assert)
 
 	assert.NoError(contentDriver.Write(standardContent), "Failed to write content")
 
-	deleted, err := contentDriver.Delete(standardContentUuid)
-	assert.True(deleted, "Didn't manage to delete content for uuid %s", standardContentUuid)
-	assert.NoError(err, "Error deleting content for uuid %s", standardContentUuid)
+	deleted, err := contentDriver.Delete(standardContent.UUID)
+	assert.True(deleted, "Didn't manage to delete content for uuid %s", standardContent.UUID)
+	assert.NoError(err, "Error deleting content for uuid %s", standardContent.UUID)
 
-	c, deleted, err := contentDriver.Read(standardContentUuid)
+	c, deleted, err := contentDriver.Read(standardContent.UUID)
 
 	assert.Equal(content{}, c, "Found content %s who should have been deleted", c)
-	assert.False(deleted, "Found content for uuid %s who should have been deleted", standardContentUuid)
-	assert.NoError(err, "Error trying to find content for uuid %s", standardContentUuid)
+	assert.False(deleted, "Found content for uuid %s who should have been deleted", standardContent.UUID)
+	assert.NoError(err, "Error trying to find content for uuid %s", standardContent.UUID)
 }
 
 func TestDeleteWithRelContentLifecycle(t *testing.T) {
 	assert := assert.New(t)
 	db := getDatabaseConnectionAndCheckClean(t, assert)
 	contentDriver := getCypherDriver(db)
-	defer cleanDB(db, t, assert)
+	defer deleteContentNodeAndAllRelationships(db, assert)
 
 	assert.NoError(contentDriver.Write(standardContent), "Failed to write content")
 
-	deleted, err := contentDriver.Delete(standardContentUuid)
-	assert.True(deleted, "Didn't manage to delete content for uuid %s", standardContentUuid)
-	assert.NoError(err, "Error deleting content for uuid %s", standardContentUuid)
+	deleted, err := contentDriver.Delete(standardContent.UUID)
+	assert.True(deleted, "Didn't manage to delete content for uuid %s", standardContent.UUID)
+	assert.NoError(err, "Error deleting content for uuid %s", standardContent.UUID)
 
-	c, found, err := contentDriver.Read(standardContentUuid)
+	c, found, err := contentDriver.Read(standardContent.UUID)
 
 	assert.Equal(content{}, c, "Found content %s who should have been deleted", c)
-	assert.False(found, "Found content for uuid %s who should have been deleted", standardContentUuid)
-	assert.NoError(err, "Error trying to find content for uuid %s", standardContentUuid)
+	assert.False(found, "Found content for uuid %s who should have been deleted", standardContent.UUID)
+	assert.NoError(err, "Error trying to find content for uuid %s", standardContent.UUID)
 }
 
 func TestDeleteWithRelNonContentLifecycle(t *testing.T) {
 	assert := assert.New(t)
 	db := getDatabaseConnectionAndCheckClean(t, assert)
 	contentDriver := getCypherDriver(db)
-	defer cleanDB(db, t, assert)
+	defer deleteContentNodeAndAllRelationships(db, assert)
 
 	assert.NoError(contentDriver.Write(standardContent), "Failed to write content")
-	writeClassifedByRelationship(db, standardContentUuid, conceptUUID, "annotations-v1", t, assert)
+	writeClassifedByRelationship(db, standardContent.UUID, conceptUUID, "annotations-v1", t, assert)
 
-	deleted, err := contentDriver.Delete(standardContentUuid)
-	assert.True(deleted, "Didn't manage to delete content for uuid %s", standardContentUuid)
-	assert.NoError(err, "Error deleting content for uuid %s", standardContentUuid)
+	deleted, err := contentDriver.Delete(standardContent.UUID)
+	assert.True(deleted, "Didn't manage to delete content for uuid %s", standardContent.UUID)
+	assert.NoError(err, "Error deleting content for uuid %s", standardContent.UUID)
 
-	c, found, err := contentDriver.Read(standardContentUuid)
+	c, found, err := contentDriver.Read(standardContent.UUID)
 
 	assert.Equal(content{}, c, "Found content %s who should have been deleted", c)
-	assert.False(found, "Found content for uuid %s who should have been deleted", standardContentUuid)
-	assert.NoError(err, "Error trying to find content for uuid %s", standardContentUuid)
+	assert.False(found, "Found content for uuid %s who should have been deleted", standardContent.UUID)
+	assert.NoError(err, "Error trying to find content for uuid %s", standardContent.UUID)
 	assert.Equal(1, checkClassifedByRelationship(db, conceptUUID, "annotations-v1", t, assert), "incorrect number, of is classified by relationships")
 }
 
@@ -96,20 +95,20 @@ func TestDeleteWithRelNoLifecycle(t *testing.T) {
 	assert := assert.New(t)
 	db := getDatabaseConnectionAndCheckClean(t, assert)
 	contentDriver := getCypherDriver(db)
-	defer cleanDB(db, t, assert)
+	defer deleteContentNodeAndAllRelationships(db, assert)
 
 	assert.NoError(contentDriver.Write(standardContent), "Failed to write content")
-	writeClassifedByRelationship(db, standardContentUuid, conceptUUID, "", t, assert)
+	writeClassifedByRelationship(db, standardContent.UUID, conceptUUID, "", t, assert)
 
-	deleted, err := contentDriver.Delete(standardContentUuid)
-	assert.True(deleted, "Didn't manage to delete content for uuid %s", standardContentUuid)
-	assert.NoError(err, "Error deleting content for uuid %s", standardContentUuid)
+	deleted, err := contentDriver.Delete(standardContent.UUID)
+	assert.True(deleted, "Didn't manage to delete content for uuid %s", standardContent.UUID)
+	assert.NoError(err, "Error deleting content for uuid %s", standardContent.UUID)
 
-	c, found, err := contentDriver.Read(standardContentUuid)
+	c, found, err := contentDriver.Read(standardContent.UUID)
 
 	assert.Equal(content{}, c, "Found content %s who should have been deleted", c)
-	assert.False(found, "Found content for uuid %s who should have been deleted", standardContentUuid)
-	assert.NoError(err, "Error trying to find content for uuid %s", standardContentUuid)
+	assert.False(found, "Found content for uuid %s who should have been deleted", standardContent.UUID)
+	assert.NoError(err, "Error trying to find content for uuid %s", standardContent.UUID)
 	assert.Equal(0, checkClassifedByRelationship(db, conceptUUID, "", t, assert), "incorrect number, of is classified by relationships")
 }
 
@@ -118,11 +117,11 @@ func TestCreateAllValuesPresent(t *testing.T) {
 
 	db := getDatabaseConnectionAndCheckClean(t, assert)
 	contentDriver := getCypherDriver(db)
-	defer cleanDB(db, t, assert)
+	defer deleteContentNodeAndAllRelationships(db, assert)
 
 	assert.NoError(contentDriver.Write(standardContent), "Failed to write content")
 
-	storedContent, _, err := contentDriver.Read(standardContentUuid)
+	storedContent, _, err := contentDriver.Read(standardContent.UUID)
 	expectedContent := content {
 		UUID:          standardContent.UUID,
 		Title:         standardContent.Title,
@@ -136,21 +135,20 @@ func TestUpdateWillRemovePropertiesNoLongerPresent(t *testing.T) {
 	assert := assert.New(t)
 	db := getDatabaseConnectionAndCheckClean(t, assert)
 	contentDriver := getCypherDriver(db)
-	defer cleanDB(db, t, assert)
-
+	defer deleteContentNodeAndAllRelationships(db, assert)
 	assert.NoError(contentDriver.Write(standardContent), "Failed to write content")
-	storedContent, _, err := contentDriver.Read(standardContentUuid)
+	storedContent, _, err := contentDriver.Read(standardContent.UUID)
 
 	assert.NoError(err)
 	assert.NotEmpty(storedContent)
 
 	var shorterContent = content{
-		UUID: standardContentUuid,
+		UUID: standardContent.UUID,
 		Body: "Shorter body",
 	}
 
 	assert.NoError(contentDriver.Write(shorterContent), "Failed to write updated content")
-	storedMinimalContent, _, err := contentDriver.Read(standardContentUuid)
+	storedMinimalContent, _, err := contentDriver.Read(standardContent.UUID)
 
 	assert.NoError(err)
 	assert.NotEmpty(storedMinimalContent)
@@ -160,22 +158,22 @@ func TestUpdateWillRemoveRelsWithNoLifeCycle(t *testing.T) {
 	assert := assert.New(t)
 	db := getDatabaseConnectionAndCheckClean(t, assert)
 	contentDriver := getCypherDriver(db)
-	defer cleanDB(db, t, assert)
+	defer deleteContentNodeAndAllRelationships(db, assert)
 
 	assert.NoError(contentDriver.Write(standardContent), "Failed to write content")
-	writeClassifedByRelationship(db, standardContentUuid, conceptUUID, "", t, assert)
-	storedContent, _, err := contentDriver.Read(standardContentUuid)
+	writeClassifedByRelationship(db, standardContent.UUID, conceptUUID, "", t, assert)
+	storedContent, _, err := contentDriver.Read(standardContent.UUID)
 
 	assert.NoError(err)
 	assert.NotEmpty(storedContent)
 
 	var shorterContent = content{
-		UUID: standardContentUuid,
+		UUID: standardContent.UUID,
 		Body: "Shorter body",
 	}
 
 	assert.NoError(contentDriver.Write(shorterContent), "Failed to write updated content")
-	storedMinimalContent, _, err := contentDriver.Read(standardContentUuid)
+	storedMinimalContent, _, err := contentDriver.Read(standardContent.UUID)
 
 	assert.NoError(err)
 	assert.NotEmpty(storedMinimalContent)
@@ -186,22 +184,22 @@ func TestUpdateWillNotRemoveRelsWithNonContentLifeCycle(t *testing.T) {
 	assert := assert.New(t)
 	db := getDatabaseConnectionAndCheckClean(t, assert)
 	contentDriver := getCypherDriver(db)
-	defer cleanDB(db, t, assert)
+	defer deleteContentNodeAndAllRelationships(db, assert)
 
 	assert.NoError(contentDriver.Write(standardContent), "Failed to write content")
-	writeClassifedByRelationship(db, standardContentUuid, conceptUUID, "annotations-v1", t, assert)
-	storedContent, _, err := contentDriver.Read(standardContentUuid)
+	writeClassifedByRelationship(db, standardContent.UUID, conceptUUID, "annotations-v1", t, assert)
+	storedContent, _, err := contentDriver.Read(standardContent.UUID)
 
 	assert.NoError(err)
 	assert.NotEmpty(storedContent)
 
 	var shorterContent = content{
-		UUID: standardContentUuid,
+		UUID: standardContent.UUID,
 		Body: "Shorter body",
 	}
 
 	assert.NoError(contentDriver.Write(shorterContent), "Failed to write updated content")
-	storedMinimalContent, _, err := contentDriver.Read(standardContentUuid)
+	storedMinimalContent, _, err := contentDriver.Read(standardContent.UUID)
 
 	assert.NoError(err)
 	assert.NotEmpty(storedMinimalContent)
@@ -213,7 +211,7 @@ func TestWriteCalculateEpocCorrectly(t *testing.T) {
 
 	db := getDatabaseConnectionAndCheckClean(t, assert)
 	contentDriver := getCypherDriver(db)
-	defer cleanDB(db, t, assert)
+	defer deleteContentNodeAndAllRelationships(db, assert)
 
 	contentDriver.Write(standardContent)
 
@@ -241,7 +239,7 @@ func TestWritePrefLabelIsAlsoWrittenAndIsEqualToTitle(t *testing.T) {
 
 	db := getDatabaseConnectionAndCheckClean(t, assert)
 	contentDriver := getCypherDriver(db)
-	defer cleanDB(db, t, assert)
+	defer deleteContentNodeAndAllRelationships(db, assert)
 
 	contentDriver.Write(standardContent)
 
@@ -269,10 +267,10 @@ func TestContentWontBeWrittenIfNoBody(t *testing.T) {
 	assert := assert.New(t)
 	db := getDatabaseConnectionAndCheckClean(t, assert)
 	contentDriver := getCypherDriver(db)
-	defer cleanDB(db, t, assert)
+	defer deleteContentNodeAndAllRelationships(db, assert)
 
 	assert.NoError(contentDriver.Write(contentWithoutABody), "Failed to write content")
-	storedContent, _, err := contentDriver.Read(noBodyContentUuid)
+	storedContent, _, err := contentDriver.Read(contentWithoutABody.UUID)
 
 	assert.NoError(err)
 	assert.Equal(content{}, storedContent, "No content should be written when the content has no body")
@@ -280,7 +278,8 @@ func TestContentWontBeWrittenIfNoBody(t *testing.T) {
 
 func getDatabaseConnectionAndCheckClean(t *testing.T, assert *assert.Assertions) neoutils.NeoConnection {
 	db := getDatabaseConnection(assert)
-	cleanDB(db, t, assert)
+	//cleanDB(db, t, assert)
+	deleteContentNodeAndAllRelationships(db, assert)
 	checkDbClean(db, t)
 	return db
 }
@@ -301,10 +300,10 @@ func getDatabaseConnection(assert *assert.Assertions) neoutils.NeoConnection {
 func cleanDB(db neoutils.CypherRunner, t *testing.T, assert *assert.Assertions) {
 	qs := []*neoism.CypherQuery{
 		{
-			Statement: fmt.Sprintf("MATCH (mc:Thing {uuid: '%v'}) DETACH DELETE mc", standardContentUuid),
+			Statement: fmt.Sprintf("MATCH (mc:Thing {uuid: '%v'}) DETACH DELETE mc", standardContent.UUID),
 		},
 		{
-			Statement: fmt.Sprintf("MATCH (fc:Thing {uuid: '%v'}) DETACH DELETE fc", standardContentUuid),
+			Statement: fmt.Sprintf("MATCH (fc:Thing {uuid: '%v'}) DETACH DELETE fc", standardContent.UUID),
 		},
 	}
 
@@ -381,7 +380,7 @@ func checkDbClean(db neoutils.CypherRunner, t *testing.T) {
 			MATCH (org:Thing) WHERE org.uuid in {uuids} RETURN org.uuid
 		`,
 		Parameters: neoism.Props{
-			"uuids": []string{standardContentUuid, standardContentUuid},
+			"uuids": []string{standardContent.UUID},
 		},
 		Result: &result,
 	}
@@ -394,4 +393,22 @@ func getCypherDriver(db neoutils.NeoConnection) service {
 	cr := NewCypherContentService(db)
 	cr.Initialise()
 	return cr
+}
+
+func deleteContentNodeAndAllRelationships(db neoutils.NeoConnection, assert *assert.Assertions) {
+	var qs []*neoism.CypherQuery
+
+	//match (content:Thing {uuid:"contentUUID"})-[*0..]-(concepts) detach delete content, concepts
+	var statement = `match (content:Thing {uuid:{contentId}})-[*0..]-(concepts) detach delete content, concepts`
+
+	qs = []*neoism.CypherQuery{
+		{
+			Statement:  statement,
+			Parameters: map[string]interface{}{
+				"contentId": standardContent.UUID,
+			},
+		},
+	}
+	err := db.CypherBatch(qs)
+	assert.NoError(err)
 }
