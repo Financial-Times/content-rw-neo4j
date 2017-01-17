@@ -102,7 +102,7 @@ func TestContentWontBeWrittenIfNoBody(t *testing.T) {
 func getDatabaseConnectionAndCheckClean(t *testing.T, assert *assert.Assertions) neoutils.NeoConnection {
 	db := getDatabaseConnection(assert)
 	deleteThingNodeAndAllRelationships(db, assert)
-	checkDbClean(db, t)
+	checkDbClean(db, assert)
 	return db
 }
 
@@ -119,8 +119,7 @@ func getDatabaseConnection(assert *assert.Assertions) neoutils.NeoConnection {
 	return db
 }
 
-func checkDbClean(db neoutils.CypherRunner, t *testing.T) {
-	assert := assert.New(t)
+func checkDbClean(db neoutils.CypherRunner, assert *assert.Assertions) {
 
 	result := []struct {
 		Uuid string `json:"t.uuid"`
