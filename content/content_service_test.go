@@ -3,9 +3,7 @@
 package content
 
 import (
-	"os"
 	"testing"
-	"github.com/Financial-Times/neo-utils-go/neoutils"
 	"github.com/jmcvetta/neoism"
 	"github.com/stretchr/testify/assert"
 )
@@ -99,49 +97,4 @@ func TestContentWontBeWrittenIfNoBody(t *testing.T) {
 	assert.Equal(content{}, storedContent, "No content should be written when the content has no body")
 }
 
-func getDatabaseConnectionAndCheckClean(assert *assert.Assertions) neoutils.NeoConnection {
-	db := getDatabaseConnection(assert)
-	deleteThingNodeAndAllRelationships(db, assert)
-	checkDbClean(db, assert)
-	return db
-}
-
-func getDatabaseConnection(assert *assert.Assertions) neoutils.NeoConnection {
-	url := os.Getenv("NEO4J_TEST_URL")
-	if url == "" {
-		url = "http://localhost:7474/db/data"
-	}
-
-	conf := neoutils.DefaultConnectionConfig()
-	conf.Transactional = false
-	db, err := neoutils.Connect(url, conf)
-	assert.NoError(err, "Failed to connect to Neo4j")
-	return db
-}
-
-func checkDbClean(db neoutils.CypherRunner, assert *assert.Assertions) {
-
-	result := []struct {
-		Uuid string `json:"t.uuid"`
-	}{}
-
-	checkGraph := neoism.CypherQuery{
-		Statement: `
-			MATCH (t:Thing) WHERE t.uuid in {uuids} RETURN t.uuid
-		`,
-		Parameters: neoism.Props{
-			"uuids": []string{standardContent.UUID, testBrandId, FTBrandId},
-		},
-		Result: &result,
-	}
-	err := db.CypherBatch([]*neoism.CypherQuery{&checkGraph})
-	assert.NoError(err)
-	assert.Empty(result)
-}
-
-func getCypherDriver(db neoutils.NeoConnection) service {
-	cr := NewCypherContentService(db)
-	cr.Initialise()
-	return cr
-}
 
