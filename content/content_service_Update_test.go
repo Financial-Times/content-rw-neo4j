@@ -6,27 +6,49 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestUpdateWillRemovePropertiesNoLongerPresent(t *testing.T) {
+
+var expectedUpdatedContent = content{
+	UUID: standardContent.UUID,
+	Title:         "Another Title",
+	PublishedDate: "1971-01-01T01:00:00.000Z",
+	Body: "Ignored Body",
+}
+
+var shorterContent = content{
+	UUID: standardContent.UUID,
+	Body: "Shorter Content",
+}
+
+func TestWillUpdateProperties(t *testing.T) {
 	assert := assert.New(t)
 	db := getDatabaseConnectionAndCheckClean(t, assert)
 	contentDriver := getCypherDriver(db)
 	defer deleteThingNodeAndAllRelationships(db, assert)
+
 	assert.NoError(contentDriver.Write(standardContent), "Failed to write content")
-	storedContent, _, err := contentDriver.Read(standardContent.UUID)
+	assert.NoError(contentDriver.Write(expectedUpdatedContent), "Failed to write updated content")
+	actualUpdatedContent, _, err := contentDriver.Read(standardContent.UUID)
 
 	assert.NoError(err)
-	assert.NotEmpty(storedContent)
+	assert.NotEmpty(actualUpdatedContent)
+	assert.Equal(actualUpdatedContent.(content).Title, expectedUpdatedContent.Title, "Faiiled to update properties of the content node.")
+	assert.Equal(actualUpdatedContent.(content).PublishedDate, expectedUpdatedContent.PublishedDate, "Faiiled to update properties of the content node.")
+}
 
-	var shorterContent = content{
-		UUID: standardContent.UUID,
-		Body: "Shorter body",
-	}
+func TestWillRemovePropertiesNoLongerPresent(t *testing.T) {
+	assert := assert.New(t)
+	db := getDatabaseConnectionAndCheckClean(t, assert)
+	contentDriver := getCypherDriver(db)
+	defer deleteThingNodeAndAllRelationships(db, assert)
 
+	assert.NoError(contentDriver.Write(standardContent), "Failed to write content")
 	assert.NoError(contentDriver.Write(shorterContent), "Failed to write updated content")
-	storedMinimalContent, _, err := contentDriver.Read(standardContent.UUID)
+	updatedContent, _, err := contentDriver.Read(standardContent.UUID)
 
 	assert.NoError(err)
-	assert.NotEmpty(storedMinimalContent)
+	assert.NotEmpty(updatedContent)
+	assert.Empty(updatedContent.(content).Title,  "Faiiled to update properties of the content node.")
+	assert.Empty(updatedContent.(content).PublishedDate,  "Faiiled to update properties of the content node.")
 }
 
 func TestUpdateWillRemoveRelsWithNoLifeCycle(t *testing.T) {
@@ -36,47 +58,40 @@ func TestUpdateWillRemoveRelsWithNoLifeCycle(t *testing.T) {
 	defer deleteThingNodeAndAllRelationships(db, assert)
 
 	assert.NoError(contentDriver.Write(standardContent), "Failed to write content")
-	writeClassifedByRelationship(db, standardContent.UUID, conceptUUID, "", t, assert)
-	storedContent, _, err := contentDriver.Read(standardContent.UUID)
+	writeClassifedByRelationships(db, standardContent.UUID, assert)
+	assert.NoError(contentDriver.Write(expectedUpdatedContent), "Failed to write updated content")
 
-	assert.NoError(err)
-	assert.NotEmpty(storedContent)
-
-	var shorterContent = content{
-		UUID: standardContent.UUID,
-		Body: "Shorter body",
-	}
-
-	assert.NoError(contentDriver.Write(shorterContent), "Failed to write updated content")
-	storedMinimalContent, _, err := contentDriver.Read(standardContent.UUID)
-
-	assert.NoError(err)
-	assert.NotEmpty(storedMinimalContent)
-	assert.Equal(0, checkClassifedByRelationship(db, conceptUUID, "", t, assert), "incorrect number, of is classified by relationships")
+	assert.Equal(0,
+		checkAnyClassifedByRelationship(db, testBrandId, "", "v1",assert),
+		"incorrect number, of is classified by relationships")
 }
 
-func TestUpdateWillNotRemoveRelsWithNonContentLifeCycle(t *testing.T) {
+func TestUpdateWillRemoveRelsWithContnetLifeCycle(t *testing.T) {
 	assert := assert.New(t)
 	db := getDatabaseConnectionAndCheckClean(t, assert)
 	contentDriver := getCypherDriver(db)
 	defer deleteThingNodeAndAllRelationships(db, assert)
 
 	assert.NoError(contentDriver.Write(standardContent), "Failed to write content")
-	writeClassifedByRelationship(db, standardContent.UUID, conceptUUID, "annotations-v1", t, assert)
-	storedContent, _, err := contentDriver.Read(standardContent.UUID)
+	writeClassifedByRelationships(db, standardContent.UUID, assert)
+	assert.NoError(contentDriver.Write(expectedUpdatedContent), "Failed to write updated content")
 
-	assert.NoError(err)
-	assert.NotEmpty(storedContent)
-
-	var shorterContent = content{
-		UUID: standardContent.UUID,
-		Body: "Shorter body",
-	}
-
-	assert.NoError(contentDriver.Write(shorterContent), "Failed to write updated content")
-	storedMinimalContent, _, err := contentDriver.Read(standardContent.UUID)
-
-	assert.NoError(err)
-	assert.NotEmpty(storedMinimalContent)
-	assert.Equal(1, checkClassifedByRelationship(db, conceptUUID, "annotations-v1", t, assert), "incorrect number, of is classified by relationships")
+	assert.Equal(0,
+		checkAnyClassifedByRelationship(db, testBrandId, "content", "v2",assert),
+		"incorrect number, of is classified by relationships")
 }
+
+func TestUpdateWillNotRemoveRelsWithAnnotationsLifeCycle(t *testing.T) {
+	assert := assert.New(t)
+	db := getDatabaseConnectionAndCheckClean(t, assert)
+	contentDriver := getCypherDriver(db)
+	defer deleteThingNodeAndAllRelationships(db, assert)
+
+	assert.NoError(contentDriver.Write(standardContent), "Failed to write content")
+	writeClassifedByRelationships(db, standardContent.UUID, assert)
+	assert.NoError(contentDriver.Write(expectedUpdatedContent), "Failed to write updated content")
+
+	assert.Equal(1, checkAnyClassifedByRelationship(db, testBrandId, "annotations-v1", "v1", assert), "incorrect number, of is classified by relationships")
+}
+
+
