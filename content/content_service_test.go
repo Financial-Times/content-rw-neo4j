@@ -3,20 +3,12 @@
 package content
 
 import (
-	"fmt"
 	"os"
 	"testing"
-
-
 	"github.com/Financial-Times/neo-utils-go/neoutils"
 	"github.com/jmcvetta/neoism"
 	"github.com/stretchr/testify/assert"
 )
-
-const (
-	conceptUUID             = "412e4ca3-f8d5-4456-8606-064c1dba3c45"
-)
-
 
 func TestCreateAllValuesPresent(t *testing.T) {
 	assert := assert.New(t)
@@ -109,7 +101,6 @@ func TestContentWontBeWrittenIfNoBody(t *testing.T) {
 
 func getDatabaseConnectionAndCheckClean(t *testing.T, assert *assert.Assertions) neoutils.NeoConnection {
 	db := getDatabaseConnection(assert)
-	//cleanDB(db, t, assert)
 	deleteThingNodeAndAllRelationships(db, assert)
 	checkDbClean(db, t)
 	return db
@@ -127,78 +118,6 @@ func getDatabaseConnection(assert *assert.Assertions) neoutils.NeoConnection {
 	assert.NoError(err, "Failed to connect to Neo4j")
 	return db
 }
-
-func cleanDB(db neoutils.CypherRunner, t *testing.T, assert *assert.Assertions) {
-	qs := []*neoism.CypherQuery{
-		{
-			Statement: fmt.Sprintf("MATCH (mc:Thing {uuid: '%v'}) DETACH DELETE mc", standardContent.UUID),
-		},
-		{
-			Statement: fmt.Sprintf("MATCH (fc:Thing {uuid: '%v'}) DETACH DELETE fc", standardContent.UUID),
-		},
-	}
-
-	err := db.CypherBatch(qs)
-	assert.NoError(err)
-}
-
-func writeClassifedByRelationship(db neoutils.NeoConnection, contentId string, conceptId string, lifecycle string, t *testing.T, assert *assert.Assertions) {
-	var annotateQuery string
-	var qs []*neoism.CypherQuery
-
-	if lifecycle == "" {
-		annotateQuery = `
-                MERGE (content:Thing{uuid:{contentId}})
-                MERGE (upp:Identifier:UPPIdentifier{value:{conceptId}})
-                MERGE (upp)-[:IDENTIFIES]->(concept:Thing) ON CREATE SET concept.uuid = {conceptId}
-                MERGE (content)-[pred:IS_CLASSIFIED_BY {platformVersion:'v1'}]->(concept)
-          `
-		qs = []*neoism.CypherQuery{
-			{
-				Statement:  annotateQuery,
-				Parameters: neoism.Props{"contentId": contentId, "conceptId": conceptId},
-			},
-		}
-	} else {
-		annotateQuery = `
-                MERGE (content:Thing{uuid:{contentId}})
-                MERGE (upp:Identifier:UPPIdentifier{value:{conceptId}})
-                MERGE (upp)-[:IDENTIFIES]->(concept:Thing) ON CREATE SET concept.uuid = {conceptId}
-                MERGE (content)-[pred:IS_CLASSIFIED_BY {platformVersion:'v1', lifecycle: {lifecycle}}]->(concept)
-          `
-		qs = []*neoism.CypherQuery{
-			{
-				Statement:  annotateQuery,
-				Parameters: neoism.Props{"contentId": contentId, "conceptId": conceptId, "lifecycle": lifecycle},
-			},
-		}
-
-	}
-	err := db.CypherBatch(qs)
-	assert.NoError(err)
-}
-
-func checkClassifedByRelationship(db neoutils.NeoConnection, conceptId string, lifecycle string, t *testing.T, assert *assert.Assertions) int {
-	countQuery := `	MATCH (t:Thing{uuid:{conceptId}})-[r:IS_CLASSIFIED_BY {platformVersion:'v1', lifecycle: {lifecycle}}]-(x)
-			MATCH (t)<-[:IDENTIFIES]-(s:Identifier:UPPIdentifier)
-			RETURN count(r) as c`
-
-	results := []struct {
-		Count int `json:"c"`
-	}{}
-
-	qs := &neoism.CypherQuery{
-		Statement:  countQuery,
-		Parameters: neoism.Props{"conceptId": conceptId, "lifecycle": lifecycle},
-		Result:     &results,
-	}
-
-	err := db.CypherBatch([]*neoism.CypherQuery{qs})
-	assert.NoError(err)
-
-	return results[0].Count
-}
-
 
 func checkDbClean(db neoutils.CypherRunner, t *testing.T) {
 	assert := assert.New(t)

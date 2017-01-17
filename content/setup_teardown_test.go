@@ -6,7 +6,6 @@ import (
 	"github.com/jmcvetta/neoism"
 	"github.com/stretchr/testify/assert"
 	"fmt"
-
 	"github.com/Financial-Times/base-ft-rw-app-go/baseftrwapp"
 )
 
@@ -37,20 +36,20 @@ func writeClassifedByRelationships(db neoutils.NeoConnection, contentId string, 
 		MERGE (content:Thing {uuid:{contentId}})
 		MERGE (concept:Thing { uuid :{conceptId} })
 	`
-	var rel_with_lifecycle = `MERGE (content)-[pred:IS_CLASSIFIED_BY { platformVersion:{platformVersion}, lifecycle: {lifecycle}}]->(concept)`
+	var annotate_with_lifecycle = `MERGE (content)-[pred:IS_CLASSIFIED_BY { platformVersion:{platformVersion}, lifecycle: {lifecycle}}]->(concept)`
 
-	var rel_without_lifecycle = `MERGE (content)-[pred:IS_CLASSIFIED_BY { platformVersion:"v1" }]->(concept)`
+	var annotate_without_lifecycle = `MERGE (content)-[pred:IS_CLASSIFIED_BY { platformVersion:"v1" }]->(concept)`
 
 	qs = []*neoism.CypherQuery{
 		{
-			Statement: fmt.Sprintf("%s %s", statement, rel_without_lifecycle),
+			Statement: fmt.Sprintf("%s %s", statement, annotate_without_lifecycle),
 			Parameters: neoism.Props{
 				"contentId": contentId,
 				"conceptId": testBrandId,
 			},
 		},
 		{
-			Statement:  fmt.Sprintf("%s %s", statement, rel_with_lifecycle),
+			Statement:  fmt.Sprintf("%s %s", statement, annotate_with_lifecycle),
 			Parameters: map[string]interface{}{
 				"contentId": contentId,
 				"conceptId": testBrandId,
@@ -60,7 +59,7 @@ func writeClassifedByRelationships(db neoutils.NeoConnection, contentId string, 
 
 		},
 		{
-			Statement:  fmt.Sprintf("%s %s", statement, rel_with_lifecycle),
+			Statement:  fmt.Sprintf("%s %s", statement, annotate_with_lifecycle),
 			Parameters: neoism.Props{
 				"contentId": contentId,
 				"conceptId": FTBrandId,
@@ -69,7 +68,7 @@ func writeClassifedByRelationships(db neoutils.NeoConnection, contentId string, 
 			},
 		},
 		{
-			Statement: fmt.Sprintf("%s %s", statement, rel_with_lifecycle),
+			Statement: fmt.Sprintf("%s %s", statement, annotate_with_lifecycle),
 			Parameters: neoism.Props{
 				"contentId": contentId,
 				"conceptId": testBrandId,
@@ -79,7 +78,7 @@ func writeClassifedByRelationships(db neoutils.NeoConnection, contentId string, 
 			},
 		},
 		{
-			Statement: fmt.Sprintf("%s %s", statement, rel_with_lifecycle),
+			Statement: fmt.Sprintf("%s %s", statement, annotate_with_lifecycle),
 			Parameters: neoism.Props{
 				"contentId": contentId,
 				"conceptId": FTBrandId,
@@ -184,3 +183,4 @@ func findThings(uuid string, label string, db neoutils.NeoConnection) (string, e
 	}
 	return result[0].UUID, err
 }
+
