@@ -13,7 +13,7 @@ import (
 func TestCreateAllValuesPresent(t *testing.T) {
 	assert := assert.New(t)
 
-	db := getDatabaseConnectionAndCheckClean(t, assert)
+	db := getDatabaseConnectionAndCheckClean(assert)
 	contentDriver := getCypherDriver(db)
 	defer deleteThingNodeAndAllRelationships(db, assert)
 
@@ -32,7 +32,7 @@ func TestCreateAllValuesPresent(t *testing.T) {
 func TestWriteCalculateEpocCorrectly(t *testing.T) {
 	assert := assert.New(t)
 
-	db := getDatabaseConnectionAndCheckClean(t, assert)
+	db := getDatabaseConnectionAndCheckClean(assert)
 	contentDriver := getCypherDriver(db)
 	defer deleteThingNodeAndAllRelationships(db, assert)
 
@@ -60,7 +60,7 @@ func TestWriteCalculateEpocCorrectly(t *testing.T) {
 func TestWritePrefLabelIsAlsoWrittenAndIsEqualToTitle(t *testing.T) {
 	assert := assert.New(t)
 
-	db := getDatabaseConnectionAndCheckClean(t, assert)
+	db := getDatabaseConnectionAndCheckClean(assert)
 	contentDriver := getCypherDriver(db)
 	defer deleteThingNodeAndAllRelationships(db, assert)
 
@@ -88,7 +88,7 @@ func TestWritePrefLabelIsAlsoWrittenAndIsEqualToTitle(t *testing.T) {
 
 func TestContentWontBeWrittenIfNoBody(t *testing.T) {
 	assert := assert.New(t)
-	db := getDatabaseConnectionAndCheckClean(t, assert)
+	db := getDatabaseConnectionAndCheckClean(assert)
 	contentDriver := getCypherDriver(db)
 	defer deleteThingNodeAndAllRelationships(db, assert)
 
@@ -99,7 +99,7 @@ func TestContentWontBeWrittenIfNoBody(t *testing.T) {
 	assert.Equal(content{}, storedContent, "No content should be written when the content has no body")
 }
 
-func getDatabaseConnectionAndCheckClean(t *testing.T, assert *assert.Assertions) neoutils.NeoConnection {
+func getDatabaseConnectionAndCheckClean(assert *assert.Assertions) neoutils.NeoConnection {
 	db := getDatabaseConnection(assert)
 	deleteThingNodeAndAllRelationships(db, assert)
 	checkDbClean(db, assert)

@@ -21,7 +21,7 @@ var shorterContent = content{
 
 func TestWillUpdateProperties(t *testing.T) {
 	assert := assert.New(t)
-	db := getDatabaseConnectionAndCheckClean(t, assert)
+	db := getDatabaseConnectionAndCheckClean(assert)
 	contentDriver := getCypherDriver(db)
 	defer deleteThingNodeAndAllRelationships(db, assert)
 
@@ -37,7 +37,7 @@ func TestWillUpdateProperties(t *testing.T) {
 
 func TestWillRemovePropertiesNoLongerPresent(t *testing.T) {
 	assert := assert.New(t)
-	db := getDatabaseConnectionAndCheckClean(t, assert)
+	db := getDatabaseConnectionAndCheckClean(assert)
 	contentDriver := getCypherDriver(db)
 	defer deleteThingNodeAndAllRelationships(db, assert)
 
@@ -53,7 +53,7 @@ func TestWillRemovePropertiesNoLongerPresent(t *testing.T) {
 
 func TestUpdateWillRemoveRelsWithNoLifeCycle(t *testing.T) {
 	assert := assert.New(t)
-	db := getDatabaseConnectionAndCheckClean(t, assert)
+	db := getDatabaseConnectionAndCheckClean(assert)
 	contentDriver := getCypherDriver(db)
 	defer deleteThingNodeAndAllRelationships(db, assert)
 
@@ -68,7 +68,7 @@ func TestUpdateWillRemoveRelsWithNoLifeCycle(t *testing.T) {
 
 func TestUpdateWillRemoveRelsWithContnetLifeCycle(t *testing.T) {
 	assert := assert.New(t)
-	db := getDatabaseConnectionAndCheckClean(t, assert)
+	db := getDatabaseConnectionAndCheckClean(assert)
 	contentDriver := getCypherDriver(db)
 	defer deleteThingNodeAndAllRelationships(db, assert)
 
@@ -83,7 +83,7 @@ func TestUpdateWillRemoveRelsWithContnetLifeCycle(t *testing.T) {
 
 func TestUpdateWillNotRemoveRelsWithAnnotationsLifeCycle(t *testing.T) {
 	assert := assert.New(t)
-	db := getDatabaseConnectionAndCheckClean(t, assert)
+	db := getDatabaseConnectionAndCheckClean(assert)
 	contentDriver := getCypherDriver(db)
 	defer deleteThingNodeAndAllRelationships(db, assert)
 

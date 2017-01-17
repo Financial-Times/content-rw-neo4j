@@ -8,7 +8,7 @@ import (
 
 func TestDeletedContentWithNoRelationshipsRemovedCompletely(t *testing.T) {
 	assert := assert.New(t)
-	db := getDatabaseConnectionAndCheckClean(t, assert)
+	db := getDatabaseConnectionAndCheckClean(assert)
 	defer deleteThingNodeAndAllRelationships(db, assert)
 
 	contentDriver := getCypherDriver(db)
@@ -31,7 +31,7 @@ func TestDeletedContentWithNoRelationshipsRemovedCompletely(t *testing.T) {
 func TestDeletedContentWithRelationshipsRemainsAThing(t *testing.T) {
 
 	assert := assert.New(t)
-	db := getDatabaseConnectionAndCheckClean(t, assert)
+	db := getDatabaseConnectionAndCheckClean(assert)
 	defer deleteThingNodeAndAllRelationships(db, assert)
 
 	contentDriver := getCypherDriver(db)
@@ -58,7 +58,7 @@ func TestDeletedContentWithRelationshipsRemainsAThing(t *testing.T) {
 func TestDeleteContentWillNotDeleteConcepts(t *testing.T) {
 
 	assert := assert.New(t)
-	db := getDatabaseConnectionAndCheckClean(t, assert)
+	db := getDatabaseConnectionAndCheckClean(assert)
 	defer deleteThingNodeAndAllRelationships(db, assert)
 
 	contentDriver := getCypherDriver(db)
@@ -74,7 +74,7 @@ func TestDeleteContentWillNotDeleteConcepts(t *testing.T) {
 
 func TestDeleteWillRemoveRelWithContentLifecycle(t *testing.T) {
 	assert := assert.New(t)
-	db := getDatabaseConnectionAndCheckClean(t, assert)
+	db := getDatabaseConnectionAndCheckClean(assert)
 	contentDriver := getCypherDriver(db)
 	defer deleteThingNodeAndAllRelationships(db, assert)
 
@@ -89,7 +89,7 @@ func TestDeleteWillRemoveRelWithContentLifecycle(t *testing.T) {
 
 func TestDeleteWillNotRemoveRelWithAnnotationsLifecycle(t *testing.T) {
 	assert := assert.New(t)
-	db := getDatabaseConnectionAndCheckClean(t, assert)
+	db := getDatabaseConnectionAndCheckClean(assert)
 	contentDriver := getCypherDriver(db)
 	defer deleteThingNodeAndAllRelationships(db, assert)
 
@@ -105,7 +105,7 @@ func TestDeleteWillNotRemoveRelWithAnnotationsLifecycle(t *testing.T) {
 
 func TestDeleteWillRemoveRelWithNoLifecycle(t *testing.T) {
 	assert := assert.New(t)
-	db := getDatabaseConnectionAndCheckClean(t, assert)
+	db := getDatabaseConnectionAndCheckClean(assert)
 	contentDriver := getCypherDriver(db)
 	defer deleteThingNodeAndAllRelationships(db, assert)
 
