@@ -66,7 +66,7 @@ func TestUpdateWillRemoveRelsWithNoLifeCycle(t *testing.T) {
 		"incorrect number, of is classified by relationships")
 }
 
-func TestUpdateWillRemoveRelsWithContnetLifeCycle(t *testing.T) {
+func TestUpdateWillRemoveRelsWithContetLifeCycle(t *testing.T) {
 	assert := assert.New(t)
 	db := getDatabaseConnectionAndCheckClean(assert)
 	contentDriver := getCypherDriver(db)

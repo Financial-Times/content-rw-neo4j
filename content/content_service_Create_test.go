@@ -27,7 +27,7 @@ func TestCreateAllValuesPresent(t *testing.T) {
 	assert.Equal(expectedContent, storedContent.(content), "Not all expected content properties were present.")
 }
 
-func TestWriteCalculateEpocCorrectly(t *testing.T) {
+func TestWriteCalculateEpochCorrectly(t *testing.T) {
 	assert := assert.New(t)
 
 	db := getDatabaseConnectionAndCheckClean(assert)
@@ -37,10 +37,10 @@ func TestWriteCalculateEpocCorrectly(t *testing.T) {
 	contentDriver.Write(standardContent)
 
 	result := []struct {
-		PublishedDateEpoc int `json:"t.publishedDateEpoch"`
+		PublishedDateEpoch int `json:"t.publishedDateEpoch"`
 	}{}
 
-	getEpocQuery := &neoism.CypherQuery{
+	getEpochQuery := &neoism.CypherQuery{
 		Statement: `
 			MATCH (t:Content {uuid:{uuid}}) RETURN t.publishedDateEpoch
 			`,
@@ -50,9 +50,9 @@ func TestWriteCalculateEpocCorrectly(t *testing.T) {
 		Result: &result,
 	}
 
-	err := contentDriver.conn.CypherBatch([]*neoism.CypherQuery{getEpocQuery})
+	err := contentDriver.conn.CypherBatch([]*neoism.CypherQuery{getEpochQuery})
 	assert.NoError(err)
-	assert.Equal(3600, result[0].PublishedDateEpoc, "Epoc of 1970-01-01T01:00:00.000Z should be 3600")
+	assert.Equal(3600, result[0].PublishedDateEpoch, "Epoch of 1970-01-01T01:00:00.000Z should be 3600")
 }
 
 func TestWritePrefLabelIsAlsoWrittenAndIsEqualToTitle(t *testing.T) {
