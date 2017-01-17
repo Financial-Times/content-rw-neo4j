@@ -92,14 +92,13 @@ func writeClassifedByRelationships(db neoutils.NeoConnection, contentId string, 
 
 	}
 
-
-	writeBrands(db, assert)
+	writeBrandConcepts(db, assert)
 
 	err := db.CypherBatch(qs)
 	assert.NoError(err)
 }
 
-func writeBrands(db neoutils.NeoConnection, assert *assert.Assertions) {
+func writeBrandConcepts(db neoutils.NeoConnection, assert *assert.Assertions) {
 	var statement = `
 	merge (brand:Thing:Concept:Brand {aliases: "Test Brand", prefLabel: "Test Brand", uuid: {testBrandId}})
 	<-[br:IDENTIFIES]-(bi:Identifier:UPPIdentifier {value: "test-brand-uppIdentifier"})
@@ -141,12 +140,6 @@ func checkAnyClassifedByRelationship(db neoutils.NeoConnection, conceptId string
 	results := []struct {
 		Count int `json:"c"`
 	}{}
-
-	//var without_lifecycle = `MATCH (t:Thing{uuid:{conceptId}})
-	//			-[r:IS_CLASSIFIED_BY {platformVersion:{platformVersion}}]-(x)
-	//		MATCH (t)<-[:IDENTIFIES]-(s:Identifier:UPPIdentifier)
-	//		RETURN count(r) as c`
-
 	var countQuery = `	MATCH (t:Thing{uuid:{conceptId}})
 				-[r:IS_CLASSIFIED_BY {platformVersion:{platformVersion}, lifecycle: {lifecycle}}]-(x)
 			MATCH (t)<-[:IDENTIFIES]-(s:Identifier:UPPIdentifier)
@@ -189,6 +182,5 @@ func findThings(uuid string, label string, db neoutils.NeoConnection) (string, e
 	if len(result) == 0 {
 		return "", nil
 	}
-	fmt.Println(result[0].UUID)
 	return result[0].UUID, err
 }
