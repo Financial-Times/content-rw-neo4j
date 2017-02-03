@@ -1,4 +1,5 @@
 # Content Reader/Writer for Neo4j (content-rw-neo4j)
+[![Circle CI](https://circleci.com/gh/Financial-Times/content-rw-neo4j.svg?style=shield)](https://circleci.com/gh/Financial-Times/content-rw-neo4j)[![Go Report Card](https://goreportcard.com/badge/github.com/Financial-Times/content-rw-neo4j)](https://goreportcard.com/report/github.com/Financial-Times/content-rw-neo4j) [![Coverage Status](https://coveralls.io/repos/github/Financial-Times/content-rw-neo4j/badge.svg)](https://coveralls.io/github/Financial-Times/content-rw-neo4j)
 
 __An API for reading/writing Content into Neo4j. Expects the content json supplied by the ingester. This is the equivalent to the content-writer-sesame but for writing to Neo4j not GraphDB__
 
