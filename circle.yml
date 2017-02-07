@@ -5,7 +5,7 @@ machine:
     NEO4J_TEST_URL: http://localhost:7474/db/data/
 dependencies:
   pre:
-    - go get github.com/axw/gocov/gocov; go get github.com/matm/gocov-html; go get -u github.com/jstemmer/go-junit-report
+    - go get -u github.com/jstemmer/go-junit-report
 test:
   pre:
     - docker info; docker run -d -e "NEO4J_AUTH=none" -e "NEO4J_HEAP_MEMORY=256" -e "NEO4J_CACHE_MEMORY=256M" -p 7474:7474 -p 7473:7473 neo4j:$NEO4J_VERSION
