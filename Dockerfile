@@ -1,10 +1,10 @@
-FROM alpine:3.4
+FROM alpine:3.5
 
 ARG PROJECT=content-rw-neo4j
 
 ADD . /${PROJECT}/
 
-RUN apk add --no-cache bash \
+RUN apk --no-cache --upgrade add bash ca-certificates \
   && apk --no-cache --virtual .build-dependencies add git go \
   && cd ${PROJECT} \
   && git fetch origin 'refs/tags/*:refs/tags/*' \

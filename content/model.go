@@ -6,6 +6,7 @@ type content struct {
 	PublishedDate string  `json:"publishedDate,omitempty"`
 	Body          string  `json:"body,omitempty"`
 	Brands        []brand `json:"brands,omitempty"`
+	StoryPackage  string  `json:"storyPackage,omitempty"`
 }
 
 type brand struct {
