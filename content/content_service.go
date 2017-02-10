@@ -57,8 +57,8 @@ func (pcd service) Read(uuid string) (interface{}, bool, error) {
 				WHERE rel.lifecycle IS NULL
 				OR rel.lifecycle = "content"
 			OPTIONAL MATCH (sp:Thing)-[rel2:IS_CURATED_FOR]->(n)
-			WITH n,collect({id:b.uuid}) as brands
-			return n.uuid as uuid, n.title as title, n.publishedDate as publishedDate, brands, sp.uuid as storyPackageUuid`,
+			WITH n,collect({id:b.uuid}) as brands, sp
+			return n.uuid as uuid, n.title as title, n.publishedDate as publishedDate, brands, sp.uuid as storyPackage`,
 		Parameters: map[string]interface{}{
 			"uuid": uuid,
 		},

@@ -1,5 +1,3 @@
-// +build !jenkins
-
 package content
 
 import (
@@ -7,7 +5,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/Financial-Times/base-ft-rw-app-go/baseftrwapp"
 	"github.com/Financial-Times/neo-utils-go/neoutils"
 	"github.com/jmcvetta/neoism"
 	"github.com/stretchr/testify/assert"
@@ -21,6 +18,7 @@ const (
 	fastFtBrandUuid         = "5c7592a8-1f0c-11e4-b0cb-b2227cce2b54"
 	thingsUriPrefix         = "http://api.ft.com/things/"
 	conceptUUID             = "412e4ca3-f8d5-4456-8606-064c1dba3c45"
+	storyPackageUUID        = "3b08c76c-7479-461d-9f0e-a4e92dca56f7"
 )
 
 var contentWithoutABody = content{
@@ -41,6 +39,7 @@ var fullContent = content{
 	PublishedDate: "1970-01-01T01:00:00.000Z",
 	Body:          "Fuller body",
 	Brands:        []brand{financialTimesBrand, fastFtBrand},
+	StoryPackage:  storyPackageUUID,
 }
 
 var financialTimesBrand = brand{
@@ -50,8 +49,6 @@ var financialTimesBrand = brand{
 var fastFtBrand = brand{
 	Id: thingsUriPrefix + fastFtBrandUuid,
 }
-
-var contentDriver baseftrwapp.Service
 
 func TestDelete(t *testing.T) {
 	assert := assert.New(t)
@@ -72,7 +69,7 @@ func TestDelete(t *testing.T) {
 	assert.NoError(err, "Error trying to find content for uuid %s", minimalContentUuid)
 }
 
-func TestDeleteWithRelContentLifecycle(t *testing.T) {
+func TestDeleteWithRelContentLifecycleAndRelIsCuratedFor(t *testing.T) {
 	assert := assert.New(t)
 	db := getDatabaseConnectionAndCheckClean(t, assert)
 	contentDriver := getCypherDriver(db)
@@ -89,6 +86,7 @@ func TestDeleteWithRelContentLifecycle(t *testing.T) {
 	assert.Equal(content{}, c, "Found content %s who should have been deleted", c)
 	assert.False(found, "Found content for uuid %s who should have been deleted", fullContentUuid)
 	assert.NoError(err, "Error trying to find content for uuid %s", fullContentUuid)
+	assert.Equal(0, checkIsCuratedForRelationship(db, storyPackageUUID, assert), "incorrect number of isCuratedFor relationships")
 }
 
 func TestDeleteWithRelNonContentLifecycle(t *testing.T) {
@@ -98,7 +96,7 @@ func TestDeleteWithRelNonContentLifecycle(t *testing.T) {
 	defer cleanDB(db, t, assert)
 
 	assert.NoError(contentDriver.Write(fullContent), "Failed to write content")
-	writeClassifedByRelationship(db, fullContentUuid, conceptUUID, "annotations-v1", t, assert)
+	writeClassifiedByRelationship(db, fullContentUuid, conceptUUID, "annotations-v1", assert)
 
 	deleted, err := contentDriver.Delete(fullContentUuid)
 	assert.True(deleted, "Didn't manage to delete content for uuid %s", fullContentUuid)
@@ -119,7 +117,7 @@ func TestDeleteWithRelNoLifecycle(t *testing.T) {
 	defer cleanDB(db, t, assert)
 
 	assert.NoError(contentDriver.Write(fullContent), "Failed to write content")
-	writeClassifedByRelationship(db, fullContentUuid, conceptUUID, "", t, assert)
+	writeClassifiedByRelationship(db, fullContentUuid, conceptUUID, "", assert)
 
 	deleted, err := contentDriver.Delete(fullContentUuid)
 	assert.True(deleted, "Didn't manage to delete content for uuid %s", fullContentUuid)
@@ -146,6 +144,13 @@ func TestCreateAllValuesPresent(t *testing.T) {
 
 	assert.NoError(err)
 	assert.NotEmpty(storedContent)
+
+	actualContent := storedContent.(content)
+
+	assert.Equal(fullContent.UUID, actualContent.UUID)
+	assert.Equal(fullContent.PublishedDate, actualContent.PublishedDate)
+	assert.Equal(fullContent.Title, actualContent.Title)
+	assert.Equal(fullContent.StoryPackage, actualContent.StoryPackage)
 }
 
 func TestUpdateWillRemovePropertiesNoLongerPresent(t *testing.T) {
@@ -172,18 +177,19 @@ func TestUpdateWillRemovePropertiesNoLongerPresent(t *testing.T) {
 	assert.NotEmpty(storedMinimalContent)
 }
 
-func TestUpdateWillRemoveRelsWithNoLifeCycle(t *testing.T) {
+func TestUpdateWillRemoveRelsWithNoLifeCycleAndRelIsCuratedFor(t *testing.T) {
 	assert := assert.New(t)
 	db := getDatabaseConnectionAndCheckClean(t, assert)
 	contentDriver := getCypherDriver(db)
 	defer cleanDB(db, t, assert)
 
 	assert.NoError(contentDriver.Write(fullContent), "Failed to write content")
-	writeClassifedByRelationship(db, fullContentUuid, conceptUUID, "", t, assert)
+	writeClassifiedByRelationship(db, fullContentUuid, conceptUUID, "", assert)
 	storedFullContent, _, err := contentDriver.Read(fullContentUuid)
 
 	assert.NoError(err)
 	assert.NotEmpty(storedFullContent)
+	assert.Equal(1, checkIsCuratedForRelationship(db, storyPackageUUID, assert), "incorrect number of isCuratedFor relationships")
 
 	var shorterFullContent = content{
 		UUID: fullContentUuid,
@@ -196,6 +202,7 @@ func TestUpdateWillRemoveRelsWithNoLifeCycle(t *testing.T) {
 	assert.NoError(err)
 	assert.NotEmpty(storedMinimalContent)
 	assert.Equal(0, checkClassifedByRelationship(db, conceptUUID, "", t, assert), "incorrect number, of is classified by relationships")
+	assert.Equal(0, checkIsCuratedForRelationship(db, storyPackageUUID, assert), "incorrect number of isCuratedFor relationships")
 }
 
 func TestUpdateWillNotRemoveRelsWithNonContentLifeCycle(t *testing.T) {
@@ -205,7 +212,7 @@ func TestUpdateWillNotRemoveRelsWithNonContentLifeCycle(t *testing.T) {
 	defer cleanDB(db, t, assert)
 
 	assert.NoError(contentDriver.Write(fullContent), "Failed to write content")
-	writeClassifedByRelationship(db, fullContentUuid, conceptUUID, "annotations-v1", t, assert)
+	writeClassifiedByRelationship(db, fullContentUuid, conceptUUID, "annotations-v1", assert)
 	storedFullContent, _, err := contentDriver.Read(fullContentUuid)
 
 	assert.NoError(err)
@@ -340,7 +347,7 @@ func cleanDB(db neoutils.CypherRunner, t *testing.T, assert *assert.Assertions) 
 	assert.NoError(err)
 }
 
-func writeClassifedByRelationship(db neoutils.NeoConnection, contentId string, conceptId string, lifecycle string, t *testing.T, assert *assert.Assertions) {
+func writeClassifiedByRelationship(db neoutils.NeoConnection, contentId string, conceptId string, lifecycle string, assert *assert.Assertions) {
 	var annotateQuery string
 	var qs []*neoism.CypherQuery
 
@@ -388,6 +395,26 @@ func checkClassifedByRelationship(db neoutils.NeoConnection, conceptId string, l
 	qs := &neoism.CypherQuery{
 		Statement:  countQuery,
 		Parameters: neoism.Props{"conceptId": conceptId, "lifecycle": lifecycle},
+		Result:     &results,
+	}
+
+	err := db.CypherBatch([]*neoism.CypherQuery{qs})
+	assert.NoError(err)
+
+	return results[0].Count
+}
+
+func checkIsCuratedForRelationship(db neoutils.NeoConnection, conceptId string, assert *assert.Assertions) int {
+	countQuery := `	MATCH (t:Thing{uuid:{storyPackageId}})-[r:IS_CURATED_FOR]->(x)
+			RETURN count(r) as c`
+
+	results := []struct {
+		Count int `json:"c"`
+	}{}
+
+	qs := &neoism.CypherQuery{
+		Statement:  countQuery,
+		Parameters: neoism.Props{"storyPackageId": conceptId},
 		Result:     &results,
 	}
 
