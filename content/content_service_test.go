@@ -404,7 +404,7 @@ func checkClassifedByRelationship(db neoutils.NeoConnection, conceptId string, l
 	return results[0].Count
 }
 
-func checkIsCuratedForRelationship(db neoutils.NeoConnection, conceptId string, assert *assert.Assertions) int {
+func checkIsCuratedForRelationship(db neoutils.NeoConnection, spID string, assert *assert.Assertions) int {
 	countQuery := `	MATCH (t:Thing{uuid:{storyPackageId}})-[r:IS_CURATED_FOR]->(x)
 			RETURN count(r) as c`
 
@@ -414,7 +414,7 @@ func checkIsCuratedForRelationship(db neoutils.NeoConnection, conceptId string, 
 
 	qs := &neoism.CypherQuery{
 		Statement:  countQuery,
-		Parameters: neoism.Props{"storyPackageId": conceptId},
+		Parameters: neoism.Props{"storyPackageId": spID},
 		Result:     &results,
 	}
 
