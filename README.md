@@ -28,18 +28,8 @@ Kafka (CMSPublication) => Ingester => content-rw-neo4j
 
 ## Building
 
-This service is built and deployed via Jenkins.
-
-* <a href="http://ftjen10085-lvpr-uk-p:8181/view/JOBS-content-rw-neo4j/job/content-rw-neo4j-build/">Build job</a>
-* <a href="http://ftjen10085-lvpr-uk-p:8181/view/JOBS-content-rw-neo4j/job/content-rw-neo4j-deploy-test/">Deploy job to Test</a>
-* <a href="http://ftjen10085-lvpr-uk-p:8181/view/JOBS-content-rw-neo4j/job/content-rw-neo4j-deploy-prod/">Deploy job to Prod</a>
-
-The build works via git tags. To prepare a new release
-- update the version in /puppet/ft-content_rw_neo4j/Modulefile, e.g. to 0.0.12
-- git tag that commit using `git tag 0.0.12`
-- `git push --tags`
-
-The deploy also works via git tag and you can also select the environment to deploy to.
+Continuosly built be CircleCI. The docker image of the service is built by Dockerhub based on the git release tag. 
+To prepare a new git release, go to the repo page on GitHub and create a new release.
 
 ## Endpoints
 /content/{uuid}
@@ -81,8 +71,3 @@ Will return 204 if successful, 404 if not found
 Healthchecks: [http://localhost:8080/__health](http://localhost:8080/__health)
 
 Ping: [http://localhost:8080/ping](http://localhost:8080/ping) or [http://localhost:8080/__ping](http://localhost:8080/__ping)
-
-### Logging
- the application uses logrus, the logfile is initilaised in main.go.
- logging requires an env app parameter, for all enviromets  other than local logs are written to file
- when running locally logging is written to console (if you want to log locally to file you need to pass in an env parameter that is != local)
