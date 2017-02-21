@@ -19,6 +19,7 @@ const (
 	thingsUriPrefix         = "http://api.ft.com/things/"
 	conceptUUID             = "412e4ca3-f8d5-4456-8606-064c1dba3c45"
 	storyPackageUUID        = "3b08c76c-7479-461d-9f0e-a4e92dca56f7"
+	contentPackageUUID      = "45163790-eec9-11e6-abbc-ee7d9c5b3b90"
 )
 
 var contentWithoutABody = content{
@@ -34,12 +35,13 @@ var minimalContent = content{
 }
 
 var fullContent = content{
-	UUID:          fullContentUuid,
-	Title:         "Content Title",
-	PublishedDate: "1970-01-01T01:00:00.000Z",
-	Body:          "Fuller body",
-	Brands:        []brand{financialTimesBrand, fastFtBrand},
-	StoryPackage:  storyPackageUUID,
+	UUID:          	fullContentUuid,
+	Title:         	"Content Title",
+	PublishedDate: 	"1970-01-01T01:00:00.000Z",
+	Body:          	"Fuller body",
+	Brands:        	[]brand{financialTimesBrand, fastFtBrand},
+	StoryPackage:  	storyPackageUUID,
+	ContentPackage:	contentPackageUUID,
 }
 
 var financialTimesBrand = brand{
@@ -69,7 +71,7 @@ func TestDelete(t *testing.T) {
 	assert.NoError(err, "Error trying to find content for uuid %s", minimalContentUuid)
 }
 
-func TestDeleteWithRelContentLifecycleAndRelIsCuratedFor(t *testing.T) {
+func TestDeleteWithRelContentLifecycleAndPackageRelationships(t *testing.T) {
 	assert := assert.New(t)
 	db := getDatabaseConnectionAndCheckClean(t, assert)
 	contentDriver := getCypherDriver(db)
@@ -87,6 +89,7 @@ func TestDeleteWithRelContentLifecycleAndRelIsCuratedFor(t *testing.T) {
 	assert.False(found, "Found content for uuid %s who should have been deleted", fullContentUuid)
 	assert.NoError(err, "Error trying to find content for uuid %s", fullContentUuid)
 	assert.Equal(0, checkIsCuratedForRelationship(db, storyPackageUUID, assert), "incorrect number of isCuratedFor relationships")
+	assert.Equal(0, checkContainsRelationship(db, contentPackageUUID, assert), "incorrect number of contains relationships")
 }
 
 func TestDeleteWithRelNonContentLifecycle(t *testing.T) {
@@ -151,6 +154,7 @@ func TestCreateAllValuesPresent(t *testing.T) {
 	assert.Equal(fullContent.PublishedDate, actualContent.PublishedDate)
 	assert.Equal(fullContent.Title, actualContent.Title)
 	assert.Equal(fullContent.StoryPackage, actualContent.StoryPackage)
+	assert.Equal(fullContent.ContentPackage, actualContent.ContentPackage)
 }
 
 func TestUpdateWillRemovePropertiesNoLongerPresent(t *testing.T) {
@@ -177,7 +181,7 @@ func TestUpdateWillRemovePropertiesNoLongerPresent(t *testing.T) {
 	assert.NotEmpty(storedMinimalContent)
 }
 
-func TestUpdateWillRemoveRelsWithNoLifeCycleAndRelIsCuratedFor(t *testing.T) {
+func TestUpdateWillRemoveRelsWithNoLifeCycleAndPackageRelationships(t *testing.T) {
 	assert := assert.New(t)
 	db := getDatabaseConnectionAndCheckClean(t, assert)
 	contentDriver := getCypherDriver(db)
@@ -190,6 +194,7 @@ func TestUpdateWillRemoveRelsWithNoLifeCycleAndRelIsCuratedFor(t *testing.T) {
 	assert.NoError(err)
 	assert.NotEmpty(storedFullContent)
 	assert.Equal(1, checkIsCuratedForRelationship(db, storyPackageUUID, assert), "incorrect number of isCuratedFor relationships")
+	assert.Equal(1, checkContainsRelationship(db, contentPackageUUID, assert), "incorrect number of contains relationships")
 
 	var shorterFullContent = content{
 		UUID: fullContentUuid,
@@ -203,6 +208,7 @@ func TestUpdateWillRemoveRelsWithNoLifeCycleAndRelIsCuratedFor(t *testing.T) {
 	assert.NotEmpty(storedMinimalContent)
 	assert.Equal(0, checkClassifedByRelationship(db, conceptUUID, "", t, assert), "incorrect number, of is classified by relationships")
 	assert.Equal(0, checkIsCuratedForRelationship(db, storyPackageUUID, assert), "incorrect number of isCuratedFor relationships")
+	assert.Equal(0, checkContainsRelationship(db, contentPackageUUID, assert), "incorrect number of contains relationships")
 }
 
 func TestUpdateWillNotRemoveRelsWithNonContentLifeCycle(t *testing.T) {
@@ -415,6 +421,26 @@ func checkIsCuratedForRelationship(db neoutils.NeoConnection, spID string, asser
 	qs := &neoism.CypherQuery{
 		Statement:  countQuery,
 		Parameters: neoism.Props{"storyPackageId": spID},
+		Result:     &results,
+	}
+
+	err := db.CypherBatch([]*neoism.CypherQuery{qs})
+	assert.NoError(err)
+
+	return results[0].Count
+}
+
+func checkContainsRelationship(db neoutils.NeoConnection, cpID string, assert *assert.Assertions) int {
+	countQuery := `	MATCH (t:Thing{uuid:{contentPackageId}})<-[r:CONTAINS]-(x)
+			RETURN count(r) as c`
+
+	results := []struct {
+		Count int `json:"c"`
+	}{}
+
+	qs := &neoism.CypherQuery{
+		Statement:  countQuery,
+		Parameters: neoism.Props{"contentPackageId": cpID},
 		Result:     &results,
 	}
 

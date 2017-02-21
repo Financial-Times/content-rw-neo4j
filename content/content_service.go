@@ -57,8 +57,14 @@ func (pcd service) Read(uuid string) (interface{}, bool, error) {
 				WHERE rel.lifecycle IS NULL
 				OR rel.lifecycle = "content"
 			OPTIONAL MATCH (sp:Thing)-[rel2:IS_CURATED_FOR]->(n)
-			WITH n,collect({id:b.uuid}) as brands, sp
-			return n.uuid as uuid, n.title as title, n.publishedDate as publishedDate, brands, sp.uuid as storyPackage`,
+			OPTIONAL MATCH (n)-[rel3:CONTAINS]->(cp:Thing)
+			WITH n,collect({id:b.uuid}) as brands, sp, cp
+			return 	n.uuid as uuid,
+				n.title as title,
+				n.publishedDate as publishedDate,
+				brands,
+				sp.uuid as storyPackage,
+				cp.uuid as contentPackage`,
 		Parameters: map[string]interface{}{
 			"uuid": uuid,
 		},
@@ -89,11 +95,12 @@ func (pcd service) Read(uuid string) (interface{}, bool, error) {
 	}
 
 	contentItem := content{
-		UUID:          result.UUID,
-		Title:         result.Title,
-		PublishedDate: result.PublishedDate,
-		Brands:        brands,
-		StoryPackage:  result.StoryPackage,
+		UUID:          	result.UUID,
+		Title:         	result.Title,
+		PublishedDate: 	result.PublishedDate,
+		Brands:        	brands,
+		StoryPackage:  	result.StoryPackage,
+		ContentPackage:	result.ContentPackage,
 	}
 	return contentItem, true, nil
 }
@@ -133,8 +140,9 @@ func (pcd service) Write(thing interface{}) error {
 				OPTIONAL MATCH (b:Thing)<-[rel:IS_CLASSIFIED_BY]-(t)
 					WHERE rel.lifecycle = "content"
 					OR rel.lifecycle IS NULL
-				OPTIONAL MATCH (c:Thing)-[rel2:IS_CURATED_FOR]->(t)
-				DELETE rel, rel2`,
+				OPTIONAL MATCH (sp:Thing)-[rel2:IS_CURATED_FOR]->(t)
+				OPTIONAL MATCH (cp:Thing)<-[rel3:CONTAINS]-(t)
+				DELETE rel, rel2, rel3`,
 		Parameters: map[string]interface{}{
 			"uuid": c.UUID,
 		},
@@ -152,8 +160,13 @@ func (pcd service) Write(thing interface{}) error {
 	}
 
 	if c.StoryPackage != "" {
-		addStoryPackageRelationQuery := addPackageRelationQuery(c.UUID, c.StoryPackage)
+		addStoryPackageRelationQuery := addStoryPackageRelationQuery(c.UUID, c.StoryPackage)
 		queries = append(queries, addStoryPackageRelationQuery)
+	}
+
+	if c.ContentPackage != "" {
+		addContentPackageRelationQuery := addContentPackageRelationQuery(c.UUID, c.ContentPackage)
+		queries = append(queries, addContentPackageRelationQuery)
 	}
 
 	statement := `MERGE (n:Thing {uuid: {uuid}})
@@ -191,10 +204,25 @@ func addBrandsQuery(brandUuid string, contentUuid string) *neoism.CypherQuery {
 	return query
 }
 
-func addPackageRelationQuery(articleUuid, packageUuid string) *neoism.CypherQuery {
+func addStoryPackageRelationQuery(articleUuid, packageUuid string) *neoism.CypherQuery {
 	statement := `	MERGE(sp:Thing{uuid:{packageUuid}})
 			MERGE(c:Thing{uuid:{contentUuid}})
 			MERGE(c)<-[rel:IS_CURATED_FOR]-(sp)`
+
+	query := &neoism.CypherQuery{
+		Statement: statement,
+		Parameters: map[string]interface{}{
+			"packageUuid": packageUuid,
+			"contentUuid": articleUuid,
+		},
+	}
+	return query
+}
+
+func addContentPackageRelationQuery(articleUuid, packageUuid string) *neoism.CypherQuery {
+	statement := `	MERGE(cp:Thing{uuid:{packageUuid}})
+			MERGE(c:Thing{uuid:{contentUuid}})
+			MERGE(c)-[rel:CONTAINS]->(cp)`
 
 	query := &neoism.CypherQuery{
 		Statement: statement,
@@ -223,8 +251,10 @@ func (pcd service) Delete(uuid string) (bool, error) {
 				WHERE rel.lifecycle IS NULL
 				OR rel.lifecycle = "content"
 			OPTIONAL MATCH (sp:Thing)-[rel2:IS_CURATED_FOR]->(p)
+			OPTIONAL MATCH (p)-[rel3:CONTAINS]->(contained_cp:Thing)
+			OPTIONAL MATCH (containing_cp:Thing)-[rel4:CONTAINS]->(p)
 			REMOVE p:Content
-			DELETE rel, rel2
+			DELETE rel, rel2, rel3, rel4
 			SET p={props}
 		`,
 		Parameters: map[string]interface{}{
