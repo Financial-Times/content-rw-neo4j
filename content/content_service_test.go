@@ -13,10 +13,9 @@ import (
 )
 
 const (
-	minimalContentUuid      = "ce3f2f5e-33d1-4c36-89e3-51aa00fd5660"
-	fullContentUuid         = "4f21ba89-940c-4708-8959-cc5816afa639"
-	noBodyContentUuid       = "6440aa4a-1298-4a49-9346-78d546bc0229"
+	contentUUID 		= "ce3f2f5e-33d1-4c36-89e3-51aa00fd5660"
 	conceptUUID             = "412e4ca3-f8d5-4456-8606-064c1dba3c45"
+	noBodyContentUuid	= "6440aa4a-1298-4a49-9346-78d546bc0229"
 )
 
 var contentWithoutABody = content{
@@ -24,18 +23,23 @@ var contentWithoutABody = content{
 	Title: "Missing Body",
 }
 
-var minimalContent = content{
-	UUID:          minimalContentUuid,
+var standardContent = content{
+	UUID:          contentUUID,
 	Title:         "Content Title",
 	PublishedDate: "1970-01-01T01:00:00.000Z",
 	Body:          "Some body",
 }
 
-var fullContent = content{
-	UUID:          fullContentUuid,
-	Title:         "Content Title",
-	PublishedDate: "1970-01-01T01:00:00.000Z",
-	Body:          "Fuller body",
+var shorterContent = content{
+	UUID: contentUUID,
+	Body: "With No Publish Date and No Title",
+}
+
+var updatedContent = content{
+	UUID: contentUUID,
+	Title: "New Ttitle",
+	PublishedDate: "1999-12-12T01:00:00.000Z",
+	Body: "Doesn't matter",
 }
 
 func TestDeleteWithNoRelsIsDeleted(t *testing.T) {
@@ -44,17 +48,17 @@ func TestDeleteWithNoRelsIsDeleted(t *testing.T) {
 	contentDriver := getCypherDriver(db)
 	defer cleanDB(db, t, assert)
 
-	assert.NoError(contentDriver.Write(minimalContent), "Failed to write content")
+	assert.NoError(contentDriver.Write(standardContent), "Failed to write content")
 
-	deleted, err := contentDriver.Delete(minimalContentUuid)
-	assert.True(deleted, "Didn't manage to delete content for uuid %s", minimalContentUuid)
-	assert.NoError(err, "Error deleting content for uuid %s", minimalContentUuid)
+	deleted, err := contentDriver.Delete(standardContent.UUID)
+	assert.True(deleted, "Didn't manage to delete content for uuid %s", standardContent.UUID)
+	assert.NoError(err, "Error deleting content for uuid %s", standardContent.UUID)
 
-	c, deleted, err := contentDriver.Read(minimalContentUuid)
+	c, deleted, err := contentDriver.Read(standardContent.UUID)
 
 	assert.Equal(content{}, c, "Found content %s who should have been deleted", c)
-	assert.False(deleted, "Found content for uuid %s who should have been deleted", minimalContentUuid)
-	assert.NoError(err, "Error trying to find content for uuid %s", minimalContentUuid)
+	assert.False(deleted, "Found content for uuid %s who should have been deleted", standardContent.UUID)
+	assert.NoError(err, "Error trying to find content for uuid %s", standardContent.UUID)
 }
 
 func TestDeleteWithRelsBecomesThing(t *testing.T) {
@@ -63,19 +67,22 @@ func TestDeleteWithRelsBecomesThing(t *testing.T) {
 	contentDriver := getCypherDriver(db)
 	defer cleanDB(db, t, assert)
 
-	assert.NoError(contentDriver.Write(fullContent), "Failed to write content")
-	writeClassifedByRelationship(db, fullContentUuid, conceptUUID, "annotations-v1", t, assert)
+	assert.NoError(contentDriver.Write(standardContent), "Failed to write content")
+	writeRelationship(db, standardContent.UUID, conceptUUID, t, assert)
 
-	deleted, err := contentDriver.Delete(fullContentUuid)
-	assert.True(deleted, "Didn't manage to delete content for uuid %s", fullContentUuid)
-	assert.NoError(err, "Error deleting content for uuid %s", fullContentUuid)
+	deleted, err := contentDriver.Delete(standardContent.UUID)
+	assert.NoError(err, "Error deleting content for uuid %s", standardContent.UUID)
+	assert.True(deleted, "Didn't manage to delete content for uuid %s", standardContent.UUID)
 
-	c, found, err := contentDriver.Read(fullContentUuid)
+	c, found, err := contentDriver.Read(standardContent.UUID)
 
 	assert.Equal(content{}, c, "Found content %s who should have been deleted", c)
-	assert.False(found, "Found content for uuid %s who should have been deleted", fullContentUuid)
-	assert.NoError(err, "Error trying to find content for uuid %s", fullContentUuid)
-	assert.Equal(1, checkClassifedByRelationship(db, conceptUUID, "annotations-v1", t, assert), "incorrect number, of is classified by relationships")
+	assert.False(found, "Found content for uuid %s who should have been deleted", standardContent.UUID)
+	assert.NoError(err, "Error trying to find content for uuid %s", standardContent.UUID)
+
+	exists, err := findConcept(standardContent.UUID, "Thing", db)
+	assert.NoError(err)
+	assert.True(exists, "Failed to find Thing for deleted content with relationships")
 }
 
 func TestCreateAllValuesPresent(t *testing.T) {
@@ -85,36 +92,15 @@ func TestCreateAllValuesPresent(t *testing.T) {
 	contentDriver := getCypherDriver(db)
 	defer cleanDB(db, t, assert)
 
-	assert.NoError(contentDriver.Write(fullContent), "Failed to write content")
+	assert.NoError(contentDriver.Write(standardContent), "Failed to write content")
 
-	storedContent, _, err := contentDriver.Read(fullContentUuid)
-
-	assert.NoError(err)
-	assert.NotEmpty(storedContent)
-}
-
-func TestUpdateWillRemovePropertiesNoLongerPresent(t *testing.T) {
-	assert := assert.New(t)
-	db := getDatabaseConnectionAndCheckClean(t, assert)
-	contentDriver := getCypherDriver(db)
-	defer cleanDB(db, t, assert)
-
-	assert.NoError(contentDriver.Write(fullContent), "Failed to write content")
-	storedFullContent, _, err := contentDriver.Read(fullContentUuid)
+	storedContent, _, err := contentDriver.Read(standardContent.UUID)
 
 	assert.NoError(err)
-	assert.NotEmpty(storedFullContent)
-
-	var shorterFullContent = content{
-		UUID: fullContentUuid,
-		Body: "Shorter body",
-	}
-
-	assert.NoError(contentDriver.Write(shorterFullContent), "Failed to write updated content")
-	storedMinimalContent, _, err := contentDriver.Read(fullContentUuid)
-
-	assert.NoError(err)
-	assert.NotEmpty(storedMinimalContent)
+	assert.NotEmpty(storedContent, "Failed to retireve stored content")
+	assert.Equal(storedContent.(content).UUID, standardContent.UUID, "Failed to match UUID")
+	assert.Equal(storedContent.(content).Title, standardContent.Title, "Failed to match Title")
+	assert.Equal(storedContent.(content).PublishedDate, standardContent.PublishedDate, "Failed to match PublishedDate")
 }
 
 func TestCreateNotAllValuesPresent(t *testing.T) {
@@ -124,12 +110,75 @@ func TestCreateNotAllValuesPresent(t *testing.T) {
 	contentDriver := getCypherDriver(db)
 	defer cleanDB(db, t, assert)
 
-	assert.NoError(contentDriver.Write(minimalContent), "Failed to write content")
+	assert.NoError(contentDriver.Write(shorterContent), "Failed to write content")
 
-	storedContent, _, err := contentDriver.Read(minimalContentUuid)
+	storedContent, _, err := contentDriver.Read(shorterContent.UUID)
 
 	assert.NoError(err)
-	assert.NotEmpty(storedContent)
+	assert.Empty(storedContent.(content).PublishedDate)
+	assert.Empty(storedContent.(content).Title)
+
+}
+
+func TestCreateDoesNotStoreBody(t *testing.T) {
+	assert := assert.New(t)
+	db := getDatabaseConnectionAndCheckClean(t, assert)
+	contentDriver := getCypherDriver(db)
+	defer cleanDB(db, t, assert)
+
+	assert.NoError(contentDriver.Write(standardContent), "Failed to write content")
+	storedContent, _, err := contentDriver.Read(standardContent.UUID)
+
+	assert.NoError(err)
+	assert.NotEmpty(storedContent, "Failed to retrive stored content")
+	assert.Empty(storedContent.(content).Body, "Body should not have been stored")
+
+}
+
+func TestWillUpdateProperties(t *testing.T) {
+	assert := assert.New(t)
+	db := getDatabaseConnectionAndCheckClean(t, assert)
+	contentDriver := getCypherDriver(db)
+	defer cleanDB(db, t, assert)
+
+	assert.NoError(contentDriver.Write(standardContent), "Failed to write content")
+	storedContent, _, err := contentDriver.Read(contentUUID)
+
+	assert.NoError(err)
+	assert.Equal(storedContent.(content).Title, standardContent.Title)
+	assert.Equal(storedContent.(content).PublishedDate, standardContent.PublishedDate)
+
+
+
+	assert.NoError(contentDriver.Write(updatedContent), "Failed to write updated content")
+	storedContent, _, err = contentDriver.Read(contentUUID)
+
+	assert.NoError(err)
+	assert.Equal(storedContent.(content).Title, updatedContent.Title, "Should have updated Title but it is still present")
+	assert.Equal(storedContent.(content).PublishedDate, updatedContent.PublishedDate, "Should have updated PublishedDate but it is still present")
+}
+
+func TestUpdateWillRemovePropertiesNoLongerPresent(t *testing.T) {
+	assert := assert.New(t)
+	db := getDatabaseConnectionAndCheckClean(t, assert)
+	contentDriver := getCypherDriver(db)
+	defer cleanDB(db, t, assert)
+
+	assert.NoError(contentDriver.Write(standardContent), "Failed to write content")
+	storedContent, _, err := contentDriver.Read(contentUUID)
+
+	assert.NoError(err)
+	assert.NotEmpty(storedContent.(content).Title)
+	assert.NotEmpty(storedContent.(content).PublishedDate)
+
+	assert.NoError(contentDriver.Write(shorterContent), "Failed to write updated content")
+	storedContent, _, err = contentDriver.Read(contentUUID)
+
+	assert.NoError(err)
+	assert.NotEmpty(storedContent, "Failed to rtreive updated content")
+	assert.Empty(storedContent.(content).Title, "Update should have removed Title but it is still present")
+	assert.Empty(storedContent.(content).PublishedDate, "Update should have removed PublishedDate but it is still present")
+
 }
 
 func TestWriteCalculateEpocCorrectly(t *testing.T) {
@@ -139,7 +188,7 @@ func TestWriteCalculateEpocCorrectly(t *testing.T) {
 	contentDriver := getCypherDriver(db)
 	defer cleanDB(db, t, assert)
 
-	uuid := "12345"
+	uuid := standardContent.UUID
 	contentReceived := content{UUID: uuid, Title: "TestContent", PublishedDate: "1970-01-01T01:00:00.000Z", Body: "Some Test text"}
 	contentDriver.Write(contentReceived)
 
@@ -147,14 +196,17 @@ func TestWriteCalculateEpocCorrectly(t *testing.T) {
 		PublishedDateEpoc int `json:"t.publishedDateEpoch"`
 	}{}
 
-	getEpocQuery := &neoism.CypherQuery{
+	getEpochQuery := &neoism.CypherQuery{
 		Statement: `
-			MATCH (t:Content {uuid:"12345"}) RETURN t.publishedDateEpoch
+			MATCH (t:Content {uuid:{uuid}}) RETURN t.publishedDateEpoch
 			`,
+		Parameters: neoism.Props{
+			"uuid": standardContent.UUID,
+		},
 		Result: &result,
 	}
 
-	err := contentDriver.conn.CypherBatch([]*neoism.CypherQuery{getEpocQuery})
+	err := contentDriver.conn.CypherBatch([]*neoism.CypherQuery{getEpochQuery})
 	assert.NoError(err)
 	assert.Equal(3600, result[0].PublishedDateEpoc, "Epoc of 1970-01-01T01:00:00.000Z should be 3600")
 }
@@ -166,9 +218,7 @@ func TestWritePrefLabelIsAlsoWrittenAndIsEqualToTitle(t *testing.T) {
 	contentDriver := getCypherDriver(db)
 	defer cleanDB(db, t, assert)
 
-	uuid := "12345"
-	contentReceived := content{UUID: uuid, Title: "TestContent", PublishedDate: "1970-01-01T01:00:00.000Z", Body: "Some Test text"}
-	contentDriver.Write(contentReceived)
+	contentDriver.Write(standardContent)
 
 	result := []struct {
 		PrefLabel string `json:"t.prefLabel"`
@@ -176,14 +226,17 @@ func TestWritePrefLabelIsAlsoWrittenAndIsEqualToTitle(t *testing.T) {
 
 	getPrefLabelQuery := &neoism.CypherQuery{
 		Statement: `
-				MATCH (t:Content {uuid:"12345"}) RETURN t.prefLabel
+				MATCH (t:Content {uuid:{uuid}}) RETURN t.prefLabel
 				`,
+		Parameters: neoism.Props{
+			"uuid": standardContent.UUID,
+		},
 		Result: &result,
 	}
 
 	err := contentDriver.conn.CypherBatch([]*neoism.CypherQuery{getPrefLabelQuery})
 	assert.NoError(err)
-	assert.Equal("TestContent", result[0].PrefLabel, "PrefLabel should be 'TestContent")
+	assert.Equal(standardContent.Title, result[0].PrefLabel, "PrefLabel should be 'Content Title'")
 }
 
 func TestContentWontBeWrittenIfNoBody(t *testing.T) {
@@ -193,10 +246,10 @@ func TestContentWontBeWrittenIfNoBody(t *testing.T) {
 	defer cleanDB(db, t, assert)
 
 	assert.NoError(contentDriver.Write(contentWithoutABody), "Failed to write content")
-	storedFullContent, _, err := contentDriver.Read(noBodyContentUuid)
+	storedContent, _, err := contentDriver.Read(contentWithoutABody.UUID)
 
 	assert.NoError(err)
-	assert.Equal(content{}, storedFullContent, "No content should be written when the content has no body")
+	assert.Equal(content{}, storedContent, "No content should be written when the content has no body")
 }
 
 func getDatabaseConnectionAndCheckClean(t *testing.T, assert *assert.Assertions) neoutils.NeoConnection {
@@ -222,10 +275,10 @@ func getDatabaseConnection(assert *assert.Assertions) neoutils.NeoConnection {
 func cleanDB(db neoutils.CypherRunner, t *testing.T, assert *assert.Assertions) {
 	qs := []*neoism.CypherQuery{
 		{
-			Statement: fmt.Sprintf("MATCH (mc:Thing {uuid: '%v'}) DETACH DELETE mc", minimalContentUuid),
+			Statement: fmt.Sprintf("MATCH (mc:Thing {uuid: '%v'}) DETACH DELETE mc", conceptUUID),
 		},
 		{
-			Statement: fmt.Sprintf("MATCH (fc:Thing {uuid: '%v'}) DETACH DELETE fc", fullContentUuid),
+			Statement: fmt.Sprintf("MATCH (fc:Thing {uuid: '%v'}) DETACH DELETE fc", contentUUID),
 		},
 	}
 
@@ -233,76 +286,62 @@ func cleanDB(db neoutils.CypherRunner, t *testing.T, assert *assert.Assertions) 
 	assert.NoError(err)
 }
 
-func writeClassifedByRelationship(db neoutils.NeoConnection, contentId string, conceptId string, lifecycle string, t *testing.T, assert *assert.Assertions) {
+func writeRelationship(db neoutils.NeoConnection, contentId string, conceptId string, t *testing.T, assert *assert.Assertions) {
 	var annotateQuery string
 	var qs []*neoism.CypherQuery
 
-	if lifecycle == "" {
-		annotateQuery = `
+	annotateQuery = `
                 MERGE (content:Thing{uuid:{contentId}})
-                MERGE (upp:Identifier:UPPIdentifier{value:{conceptId}})
-                MERGE (upp)-[:IDENTIFIES]->(concept:Thing) ON CREATE SET concept.uuid = {conceptId}
-                MERGE (content)-[pred:IS_CLASSIFIED_BY {platformVersion:'v1'}]->(concept)
+                MERGE (concept:Thing) ON CREATE SET concept.uuid = {conceptId}
+                MERGE (content)-[pred:SOME_PPREDICATE]->(concept)
           `
-		qs = []*neoism.CypherQuery{
-			{
-				Statement:  annotateQuery,
-				Parameters: neoism.Props{"contentId": contentId, "conceptId": conceptId},
-			},
-		}
-	} else {
-		annotateQuery = `
-                MERGE (content:Thing{uuid:{contentId}})
-                MERGE (upp:Identifier:UPPIdentifier{value:{conceptId}})
-                MERGE (upp)-[:IDENTIFIES]->(concept:Thing) ON CREATE SET concept.uuid = {conceptId}
-                MERGE (content)-[pred:IS_CLASSIFIED_BY {platformVersion:'v1', lifecycle: {lifecycle}}]->(concept)
-          `
-		qs = []*neoism.CypherQuery{
-			{
-				Statement:  annotateQuery,
-				Parameters: neoism.Props{"contentId": contentId, "conceptId": conceptId, "lifecycle": lifecycle},
-			},
-		}
 
+	qs = []*neoism.CypherQuery{
+		{
+			Statement:  annotateQuery,
+			Parameters: neoism.Props{"contentId": contentId, "conceptId": conceptId},
+		},
 	}
+
+
 	err := db.CypherBatch(qs)
 	assert.NoError(err)
 }
 
-func checkClassifedByRelationship(db neoutils.NeoConnection, conceptId string, lifecycle string, t *testing.T, assert *assert.Assertions) int {
-	countQuery := `	MATCH (t:Thing{uuid:{conceptId}})-[r:IS_CLASSIFIED_BY {platformVersion:'v1', lifecycle: {lifecycle}}]-(x)
-			MATCH (t)<-[:IDENTIFIES]-(s:Identifier:UPPIdentifier)
-			RETURN count(r) as c`
+func findConcept(uuid string, label string, db neoutils.NeoConnection) (bool, error) {
 
-	results := []struct {
-		Count int `json:"c"`
-	}{}
-
-	qs := &neoism.CypherQuery{
-		Statement:  countQuery,
-		Parameters: neoism.Props{"conceptId": conceptId, "lifecycle": lifecycle},
-		Result:     &results,
+	type  thing struct{
+		UUID  string  `json:"uuid,omitempty"`
 	}
 
-	err := db.CypherBatch([]*neoism.CypherQuery{qs})
-	assert.NoError(err)
+	result := []struct{
+		thing
+	}{}
 
-	return results[0].Count
+	var statement = fmt.Sprintf("MATCH (t:%s {uuid:'%s'}) RETURN t.uuid as uuid", label, uuid)
+
+	getPrefLabelQuery := &neoism.CypherQuery{
+		Statement: statement,
+		Result: &result,
+	}
+	err := db.CypherBatch([]*neoism.CypherQuery{getPrefLabelQuery})
+
+	return len(result) > 0, err
 }
 
 func checkDbClean(db neoutils.CypherRunner, t *testing.T) {
 	assert := assert.New(t)
 
 	result := []struct {
-		Uuid string `json:"org.uuid"`
+		Uuid string `json:"t.uuid"`
 	}{}
 
 	checkGraph := neoism.CypherQuery{
 		Statement: `
-			MATCH (org:Thing) WHERE org.uuid in {uuids} RETURN org.uuid
+			MATCH (t:Thing) WHERE t.uuid in {uuids} RETURN t.uuid
 		`,
 		Parameters: neoism.Props{
-			"uuids": []string{fullContentUuid, minimalContentUuid, },
+			"uuids": []string{standardContent.UUID, conceptUUID },
 		},
 		Result: &result,
 	}
