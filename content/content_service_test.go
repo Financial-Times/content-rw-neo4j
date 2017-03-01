@@ -80,7 +80,7 @@ func TestDeleteWithRelsBecomesThing(t *testing.T) {
 	assert.False(found, "Found content for uuid %s who should have been deleted", standardContent.UUID)
 	assert.NoError(err, "Error trying to find content for uuid %s", standardContent.UUID)
 
-	exists, err := findConcept(standardContent.UUID, "Thing", db)
+	exists, err := doesThingExist(standardContent.UUID, db)
 	assert.NoError(err)
 	assert.True(exists, "Failed to find Thing for deleted content with relationships")
 }
@@ -178,7 +178,6 @@ func TestUpdateWillRemovePropertiesNoLongerPresent(t *testing.T) {
 	assert.NotEmpty(storedContent, "Failed to rtreive updated content")
 	assert.Empty(storedContent.(content).Title, "Update should have removed Title but it is still present")
 	assert.Empty(storedContent.(content).PublishedDate, "Update should have removed PublishedDate but it is still present")
-
 }
 
 func TestWriteCalculateEpocCorrectly(t *testing.T) {
@@ -303,28 +302,23 @@ func writeRelationship(db neoutils.NeoConnection, contentId string, conceptId st
 		},
 	}
 
-
 	err := db.CypherBatch(qs)
 	assert.NoError(err)
 }
 
-func findConcept(uuid string, label string, db neoutils.NeoConnection) (bool, error) {
-
-	type  thing struct{
-		UUID  string  `json:"uuid,omitempty"`
-	}
+func doesThingExist(uuid string, db neoutils.NeoConnection) (bool, error) {
 
 	result := []struct{
-		thing
+		UUID  string  `json:"uuid,omitempty"`
 	}{}
-
-	var statement = fmt.Sprintf("MATCH (t:%s {uuid:'%s'}) RETURN t.uuid as uuid", label, uuid)
-
-	getPrefLabelQuery := &neoism.CypherQuery{
-		Statement: statement,
+	query := &neoism.CypherQuery{
+		Statement: "MATCH (t:Thing {uuid:{uuid}}) RETURN t.uuid as uuid",
+		Parameters: neoism.Props{
+			"uuid": uuid,
+		},
 		Result: &result,
 	}
-	err := db.CypherBatch([]*neoism.CypherQuery{getPrefLabelQuery})
+	err := db.CypherBatch([]*neoism.CypherQuery{query})
 
 	return len(result) > 0, err
 }

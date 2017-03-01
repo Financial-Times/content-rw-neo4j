@@ -6,7 +6,3 @@ type content struct {
 	PublishedDate string  `json:"publishedDate,omitempty"`
 	Body          string  `json:"body,omitempty"`
 }
-
-type brand struct {
-	Id string `json:"id"`
-}

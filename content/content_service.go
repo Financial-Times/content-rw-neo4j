@@ -22,20 +22,11 @@ func NewCypherContentService(cypherRunner neoutils.NeoConnection) service {
 	return service{cypherRunner}
 }
 
-//Initialise initialisation of the indexes
+//Initialise ensure constraint on content uuid
 func (cd service) Initialise() error {
 
-	err := cd.conn.EnsureIndexes(map[string]string{
-		"Identifier": "value",
-	})
-
-	if err != nil {
-		return err
-	}
-
 	return cd.conn.EnsureConstraints(map[string]string{
-		"Content": "uuid",
-		"Brand":   "uuid"})
+		"Content": "uuid"})
 }
 
 // Check - Feeds into the Healthcheck and checks whether we can connect to Neo and that the datastore isn't empty
