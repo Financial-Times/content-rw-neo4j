@@ -101,6 +101,8 @@ func TestCreateAllValuesPresent(t *testing.T) {
 	assert.Equal(storedContent.(content).UUID, standardContent.UUID, "Failed to match UUID")
 	assert.Equal(storedContent.(content).Title, standardContent.Title, "Failed to match Title")
 	assert.Equal(storedContent.(content).PublishedDate, standardContent.PublishedDate, "Failed to match PublishedDate")
+	assert.Empty(storedContent.(content).Body, "Body should not have been stored")
+
 }
 
 func TestCreateNotAllValuesPresent(t *testing.T) {
@@ -120,21 +122,6 @@ func TestCreateNotAllValuesPresent(t *testing.T) {
 
 }
 
-func TestCreateDoesNotStoreBody(t *testing.T) {
-	assert := assert.New(t)
-	db := getDatabaseConnectionAndCheckClean(t, assert)
-	contentDriver := getCypherDriver(db)
-	defer cleanDB(db, t, assert)
-
-	assert.NoError(contentDriver.Write(standardContent), "Failed to write content")
-	storedContent, _, err := contentDriver.Read(standardContent.UUID)
-
-	assert.NoError(err)
-	assert.NotEmpty(storedContent, "Failed to retrive stored content")
-	assert.Empty(storedContent.(content).Body, "Body should not have been stored")
-
-}
-
 func TestWillUpdateProperties(t *testing.T) {
 	assert := assert.New(t)
 	db := getDatabaseConnectionAndCheckClean(t, assert)
@@ -147,8 +134,6 @@ func TestWillUpdateProperties(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal(storedContent.(content).Title, standardContent.Title)
 	assert.Equal(storedContent.(content).PublishedDate, standardContent.PublishedDate)
-
-
 
 	assert.NoError(contentDriver.Write(updatedContent), "Failed to write updated content")
 	storedContent, _, err = contentDriver.Read(contentUUID)
