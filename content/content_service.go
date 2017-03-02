@@ -152,6 +152,7 @@ func (pcd service) Write(thing interface{}) error {
 	}
 
 	if c.StoryPackage != "" {
+		log.Infof("There is a story package with uuid=%v attached to Article with uuid=%v", c.StoryPackage, c.UUID)
 		addStoryPackageRelationQuery := addPackageRelationQuery(c.UUID, c.StoryPackage)
 		queries = append(queries, addStoryPackageRelationQuery)
 	}
