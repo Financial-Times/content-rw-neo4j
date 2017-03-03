@@ -103,17 +103,15 @@ func (pcd service) Write(thing interface{}) error {
 		      set n={allprops}
 		      set n :Content`
 
-	return pcd.conn.CypherBatch(
-		[]*neoism.CypherQuery{
-			{
-				Statement: statement,
-				Parameters: map[string]interface{}{
-					"uuid":     c.UUID,
-					"allprops": params,
-				},
-			},
+	writeContentQuery := &neoism.CypherQuery{
+		Statement: statement,
+		Parameters: map[string]interface{}{
+			"uuid":     c.UUID,
+			"allprops": params,
 		},
-	)
+	}
+
+	return pcd.conn.CypherBatch([]*neoism.CypherQuery{writeContentQuery})
 }
 
 //Delete - Deletes a content
