@@ -85,7 +85,7 @@ func main() {
 			Services:      services,
 			HealthHandler: v1a.Handler("ft-content_rw_neo4j ServiceModule", "Writes 'content' to Neo4j, usually as part of a bulk upload done on a schedule", checks...),
 			Port:          *port,
-			ServiceName:   "brands-rw-neo4j",
+			ServiceName:   "content-rw-neo4j",
 			Env:           *env,
 			EnableReqLog:  false,
 		})
