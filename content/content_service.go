@@ -42,11 +42,8 @@ func (pcd service) Read(uuid string) (interface{}, bool, error) {
 
 	query := &neoism.CypherQuery{
 		Statement: `MATCH (n:Content {uuid:{uuid}})
-			OPTIONAL MATCH (n)-[rel:IS_CLASSIFIED_BY]->(b:Thing)
-				WHERE rel.lifecycle IS NULL
-				OR rel.lifecycle = "content"
-			OPTIONAL MATCH (sp:Thing)-[rel2:IS_CURATED_FOR]->(n)
-			WITH n,collect({id:b.uuid}) as brands, sp
+			OPTIONAL MATCH (sp:Thing)-[rel:IS_CURATED_FOR]->(n)
+			WITH n,sp
 			return n.uuid as uuid, n.title as title, n.publishedDate as publishedDate, sp.uuid as storyPackage`,
 		Parameters: map[string]interface{}{
 			"uuid": uuid,
@@ -107,8 +104,8 @@ func (pcd service) Write(thing interface{}) error {
 
 	deleteEntityRelationshipsQuery := &neoism.CypherQuery{
 		Statement: `MATCH (t:Thing {uuid:{uuid}})
-				OPTIONAL MATCH (c:Thing)-[rel2:IS_CURATED_FOR]->(t)
-				DELETE rel2`,
+				OPTIONAL MATCH (c:Thing)-[rel:IS_CURATED_FOR]->(t)
+				DELETE rel`,
 		Parameters: map[string]interface{}{
 			"uuid": c.UUID,
 		},
