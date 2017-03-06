@@ -2,11 +2,9 @@ package content
 
 import (
 	"encoding/json"
-	"fmt"
 	"regexp"
 	"time"
 
-	"github.com/Financial-Times/neo-model-utils-go/mapper"
 	"github.com/Financial-Times/neo-utils-go/neoutils"
 	log "github.com/Sirupsen/logrus"
 	"github.com/jmcvetta/neoism"
@@ -24,20 +22,11 @@ func NewCypherContentService(cypherRunner neoutils.NeoConnection) service {
 	return service{cypherRunner}
 }
 
-//Initialise initialisation of the indexes
+//Initialise ensure constraint on content uuid
 func (cd service) Initialise() error {
 
-	err := cd.conn.EnsureIndexes(map[string]string{
-		"Identifier": "value",
-	})
-
-	if err != nil {
-		return err
-	}
-
 	return cd.conn.EnsureConstraints(map[string]string{
-		"Content": "uuid",
-		"Brand":   "uuid"})
+		"Content": "uuid"})
 }
 
 // Check - Feeds into the Healthcheck and checks whether we can connect to Neo and that the datastore isn't empty
@@ -58,7 +47,7 @@ func (pcd service) Read(uuid string) (interface{}, bool, error) {
 				OR rel.lifecycle = "content"
 			OPTIONAL MATCH (sp:Thing)-[rel2:IS_CURATED_FOR]->(n)
 			WITH n,collect({id:b.uuid}) as brands, sp
-			return n.uuid as uuid, n.title as title, n.publishedDate as publishedDate, brands, sp.uuid as storyPackage`,
+			return n.uuid as uuid, n.title as title, n.publishedDate as publishedDate, sp.uuid as storyPackage`,
 		Parameters: map[string]interface{}{
 			"uuid": uuid,
 		},
@@ -77,22 +66,10 @@ func (pcd service) Read(uuid string) (interface{}, bool, error) {
 
 	result := results[0]
 
-	if len(result.Brands) == 1 && (result.Brands[0].Id == "") {
-		result.Brands = []brand{}
-	}
-
-	var brands []brand
-
-	for _, brand := range result.Brands {
-		brand.Id = mapper.IDURL(brand.Id)
-		brands = append(brands, brand)
-	}
-
 	contentItem := content{
 		UUID:          result.UUID,
 		Title:         result.Title,
 		PublishedDate: result.PublishedDate,
-		Brands:        brands,
 		StoryPackage:  result.StoryPackage,
 	}
 	return contentItem, true, nil
@@ -130,26 +107,14 @@ func (pcd service) Write(thing interface{}) error {
 
 	deleteEntityRelationshipsQuery := &neoism.CypherQuery{
 		Statement: `MATCH (t:Thing {uuid:{uuid}})
-				OPTIONAL MATCH (b:Thing)<-[rel:IS_CLASSIFIED_BY]-(t)
-					WHERE rel.lifecycle = "content"
-					OR rel.lifecycle IS NULL
 				OPTIONAL MATCH (c:Thing)-[rel2:IS_CURATED_FOR]->(t)
-				DELETE rel, rel2`,
+				DELETE rel2`,
 		Parameters: map[string]interface{}{
 			"uuid": c.UUID,
 		},
 	}
 
 	queries := []*neoism.CypherQuery{deleteEntityRelationshipsQuery}
-
-	for _, brand := range c.Brands {
-		brandUuid, err := extractUUIDFromURI(brand.Id)
-		if err != nil {
-			return err
-		}
-		addBrandsQuery := addBrandsQuery(brandUuid, c.UUID)
-		queries = append(queries, addBrandsQuery)
-	}
 
 	if c.StoryPackage != "" {
 		log.Infof("There is a story package with uuid=%v attached to Article with uuid=%v", c.StoryPackage, c.UUID)
@@ -168,29 +133,11 @@ func (pcd service) Write(thing interface{}) error {
 			"allprops": params,
 		},
 	}
-	queries = append(queries, writeContentQuery)
 
+	queries = append(queries, writeContentQuery)
 	return pcd.conn.CypherBatch(queries)
 }
 
-func addBrandsQuery(brandUuid string, contentUuid string) *neoism.CypherQuery {
-	statement := `	MERGE (brandIdentifier:Identifier:UPPIdentifier{value:{brandUuid}})
-			MERGE(brand:Thing{uuid:{brandUuid}})
-			MERGE(brandIdentifier)-[:IDENTIFIES]->(brand)
-			ON CREATE SET brandIdentifier.uuid = {brandUuid}
-			MERGE(content:Thing{uuid:{contentUuid}})
-			MERGE(content)-[rel:IS_CLASSIFIED_BY{platformVersion:{platformVersion}, lifecycle: "content"}]->(brand)`
-
-	query := &neoism.CypherQuery{
-		Statement: statement,
-		Parameters: map[string]interface{}{
-			"brandUuid":       brandUuid,
-			"contentUuid":     contentUuid,
-			"platformVersion": platformVersion,
-		},
-	}
-	return query
-}
 
 func addPackageRelationQuery(articleUuid, packageUuid string) *neoism.CypherQuery {
 	statement := `	MERGE(sp:Thing{uuid:{packageUuid}})
@@ -207,25 +154,14 @@ func addPackageRelationQuery(articleUuid, packageUuid string) *neoism.CypherQuer
 	return query
 }
 
-func extractUUIDFromURI(uri string) (string, error) {
-	result := uuidExtractRegex.FindStringSubmatch(uri)
-	if len(result) == 2 {
-		return result[1], nil
-	}
-	return "", fmt.Errorf("Couldn't extract uuid from uri %s", uri)
-}
-
 //Delete - Deletes a content
 func (pcd service) Delete(uuid string) (bool, error) {
 	clearNode := &neoism.CypherQuery{
 		Statement: `
 			MATCH (p:Thing {uuid: {uuid}})
-			OPTIONAL MATCH (p)-[rel:IS_CLASSIFIED_BY]->(b:Thing)
-				WHERE rel.lifecycle IS NULL
-				OR rel.lifecycle = "content"
-			OPTIONAL MATCH (sp:Thing)-[rel2:IS_CURATED_FOR]->(p)
+			OPTIONAL MATCH (sp:Thing)-[rel:IS_CURATED_FOR]->(p)
 			REMOVE p:Content
-			DELETE rel, rel2
+			DELETE rel
 			SET p={props}
 		`,
 		Parameters: map[string]interface{}{
@@ -294,6 +230,3 @@ func (pcd service) Count() (int, error) {
 	return results[0].Count, nil
 }
 
-const (
-	platformVersion = "v2"
-)
