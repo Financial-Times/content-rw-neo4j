@@ -1,8 +1,3 @@
-Compiled source #
-###################
-*.exe
-content-rw-neo4j
-
-# Logs and databases #
-######################
+content-rw-neo4j*
 *.log
+.idea

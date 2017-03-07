@@ -16,6 +16,7 @@ const (
 	contentUUID 		= "ce3f2f5e-33d1-4c36-89e3-51aa00fd5660"
 	conceptUUID             = "412e4ca3-f8d5-4456-8606-064c1dba3c45"
 	noBodyContentUuid	= "6440aa4a-1298-4a49-9346-78d546bc0229"
+	storyPackageUUID        = "3b08c76c-7479-461d-9f0e-a4e92dca56f7"
 )
 
 var contentWithoutABody = content{
@@ -28,6 +29,7 @@ var standardContent = content{
 	Title:         "Content Title",
 	PublishedDate: "1970-01-01T01:00:00.000Z",
 	Body:          "Some body",
+	StoryPackage:  storyPackageUUID,
 }
 
 var shorterContent = content{
@@ -48,13 +50,13 @@ func TestDeleteWithNoRelsIsDeleted(t *testing.T) {
 	contentDriver := getCypherDriver(db)
 	defer cleanDB(db, t, assert)
 
-	assert.NoError(contentDriver.Write(standardContent), "Failed to write content")
+	assert.NoError(contentDriver.Write(shorterContent), "Failed to write content")
 
-	deleted, err := contentDriver.Delete(standardContent.UUID)
-	assert.True(deleted, "Didn't manage to delete content for uuid %s", standardContent.UUID)
-	assert.NoError(err, "Error deleting content for uuid %s", standardContent.UUID)
+	deleted, err := contentDriver.Delete(shorterContent.UUID)
+	assert.True(deleted, "Didn't manage to delete content for uuid %s", shorterContent.UUID)
+	assert.NoError(err, "Error deleting content for uuid %s", shorterContent.UUID)
 
-	c, deleted, err := contentDriver.Read(standardContent.UUID)
+	c, deleted, err := contentDriver.Read(shorterContent.UUID)
 
 	assert.Equal(content{}, c, "Found content %s who should have been deleted", c)
 	assert.False(deleted, "Found content for uuid %s who should have been deleted", standardContent.UUID)
@@ -79,6 +81,7 @@ func TestDeleteWithRelsBecomesThing(t *testing.T) {
 	assert.Equal(content{}, c, "Found content %s who should have been deleted", c)
 	assert.False(found, "Found content for uuid %s who should have been deleted", standardContent.UUID)
 	assert.NoError(err, "Error trying to find content for uuid %s", standardContent.UUID)
+	assert.Equal(0, checkIsCuratedForRelationship(db, storyPackageUUID, assert), "incorrect number of isCuratedFor relationships")
 
 	exists, err := doesThingExist(standardContent.UUID, db)
 	assert.NoError(err)
@@ -95,13 +98,15 @@ func TestCreateAllValuesPresent(t *testing.T) {
 	assert.NoError(contentDriver.Write(standardContent), "Failed to write content")
 
 	storedContent, _, err := contentDriver.Read(standardContent.UUID)
-
 	assert.NoError(err)
 	assert.NotEmpty(storedContent, "Failed to retireve stored content")
-	assert.Equal(storedContent.(content).UUID, standardContent.UUID, "Failed to match UUID")
-	assert.Equal(storedContent.(content).Title, standardContent.Title, "Failed to match Title")
-	assert.Equal(storedContent.(content).PublishedDate, standardContent.PublishedDate, "Failed to match PublishedDate")
-	assert.Empty(storedContent.(content).Body, "Body should not have been stored")
+	actualContent := storedContent.(content)
+
+	assert.Equal(actualContent.UUID, standardContent.UUID, "Failed to match UUID")
+	assert.Equal(actualContent.Title, standardContent.Title, "Failed to match Title")
+	assert.Equal(actualContent.PublishedDate, standardContent.PublishedDate, "Failed to match PublishedDate")
+	assert.Empty(actualContent.Body, "Body should not have been stored")
+	assert.Equal(standardContent.StoryPackage, actualContent.StoryPackage)
 
 }
 
@@ -155,6 +160,7 @@ func TestUpdateWillRemovePropertiesNoLongerPresent(t *testing.T) {
 	assert.NoError(err)
 	assert.NotEmpty(storedContent.(content).Title)
 	assert.NotEmpty(storedContent.(content).PublishedDate)
+	assert.Equal(1, checkIsCuratedForRelationship(db, storyPackageUUID, assert), "incorrect number of isCuratedFor relationships")
 
 	assert.NoError(contentDriver.Write(shorterContent), "Failed to write updated content")
 	storedContent, _, err = contentDriver.Read(contentUUID)
@@ -163,6 +169,7 @@ func TestUpdateWillRemovePropertiesNoLongerPresent(t *testing.T) {
 	assert.NotEmpty(storedContent, "Failed to rtreive updated content")
 	assert.Empty(storedContent.(content).Title, "Update should have removed Title but it is still present")
 	assert.Empty(storedContent.(content).PublishedDate, "Update should have removed PublishedDate but it is still present")
+	assert.Equal(0, checkIsCuratedForRelationship(db, storyPackageUUID, assert), "incorrect number of isCuratedFor relationships")
 }
 
 func TestWriteCalculateEpocCorrectly(t *testing.T) {
@@ -306,6 +313,26 @@ func doesThingExist(uuid string, db neoutils.NeoConnection) (bool, error) {
 	err := db.CypherBatch([]*neoism.CypherQuery{query})
 
 	return len(result) > 0, err
+}
+
+func checkIsCuratedForRelationship(db neoutils.NeoConnection, spID string, assert *assert.Assertions) int {
+	countQuery := `	MATCH (t:Thing{uuid:{storyPackageId}})-[r:IS_CURATED_FOR]->(x)
+			RETURN count(r) as c`
+
+	results := []struct {
+		Count int `json:"c"`
+	}{}
+
+	qs := &neoism.CypherQuery{
+		Statement:  countQuery,
+		Parameters: neoism.Props{"storyPackageId": spID},
+		Result:     &results,
+	}
+
+	err := db.CypherBatch([]*neoism.CypherQuery{qs})
+	assert.NoError(err)
+
+	return results[0].Count
 }
 
 func checkDbClean(db neoutils.CypherRunner, t *testing.T) {

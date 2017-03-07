@@ -42,7 +42,9 @@ func (pcd service) Read(uuid string) (interface{}, bool, error) {
 
 	query := &neoism.CypherQuery{
 		Statement: `MATCH (n:Content {uuid:{uuid}})
-			return n.uuid as uuid, n.title as title, n.publishedDate as publishedDate`,
+			OPTIONAL MATCH (sp:Thing)-[rel:IS_CURATED_FOR]->(n)
+			WITH n,sp
+			return n.uuid as uuid, n.title as title, n.publishedDate as publishedDate, sp.uuid as storyPackage`,
 		Parameters: map[string]interface{}{
 			"uuid": uuid,
 		},
@@ -65,6 +67,7 @@ func (pcd service) Read(uuid string) (interface{}, bool, error) {
 		UUID:          result.UUID,
 		Title:         result.Title,
 		PublishedDate: result.PublishedDate,
+		StoryPackage:  result.StoryPackage,
 	}
 	return contentItem, true, nil
 }
@@ -99,6 +102,23 @@ func (pcd service) Write(thing interface{}) error {
 		params["publishedDateEpoch"] = datetimeEpoch.Unix()
 	}
 
+	deleteEntityRelationshipsQuery := &neoism.CypherQuery{
+		Statement: `MATCH (t:Thing {uuid:{uuid}})
+				OPTIONAL MATCH (c:Thing)-[rel:IS_CURATED_FOR]->(t)
+				DELETE rel`,
+		Parameters: map[string]interface{}{
+			"uuid": c.UUID,
+		},
+	}
+
+	queries := []*neoism.CypherQuery{deleteEntityRelationshipsQuery}
+
+	if c.StoryPackage != "" {
+		log.Infof("There is a story package with uuid=%v attached to Article with uuid=%v", c.StoryPackage, c.UUID)
+		addStoryPackageRelationQuery := addPackageRelationQuery(c.UUID, c.StoryPackage)
+		queries = append(queries, addStoryPackageRelationQuery)
+	}
+
 	statement := `MERGE (n:Thing {uuid: {uuid}})
 		      set n={allprops}
 		      set n :Content`
@@ -111,7 +131,24 @@ func (pcd service) Write(thing interface{}) error {
 		},
 	}
 
-	return pcd.conn.CypherBatch([]*neoism.CypherQuery{writeContentQuery})
+	queries = append(queries, writeContentQuery)
+	return pcd.conn.CypherBatch(queries)
+}
+
+
+func addPackageRelationQuery(articleUuid, packageUuid string) *neoism.CypherQuery {
+	statement := `	MERGE(sp:Thing{uuid:{packageUuid}})
+			MERGE(c:Thing{uuid:{contentUuid}})
+			MERGE(c)<-[rel:IS_CURATED_FOR]-(sp)`
+
+	query := &neoism.CypherQuery{
+		Statement: statement,
+		Parameters: map[string]interface{}{
+			"packageUuid": packageUuid,
+			"contentUuid": articleUuid,
+		},
+	}
+	return query
 }
 
 //Delete - Deletes a content
@@ -119,7 +156,9 @@ func (pcd service) Delete(uuid string) (bool, error) {
 	clearNode := &neoism.CypherQuery{
 		Statement: `
 			MATCH (p:Thing {uuid: {uuid}})
+			OPTIONAL MATCH (sp:Thing)-[rel:IS_CURATED_FOR]->(p)
 			REMOVE p:Content
+			DELETE rel
 			SET p={props}
 		`,
 		Parameters: map[string]interface{}{

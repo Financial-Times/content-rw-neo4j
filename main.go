@@ -53,12 +53,6 @@ func main() {
 		EnvVar: "LOG_METRICS",
 	})
 
-	env := app.String(cli.StringOpt{
-		Name:  "env",
-		Value: "local",
-		Desc:  "environment this app is running in",
-	})
-
 	app.Action = func() {
 		conf := neoutils.DefaultConnectionConfig()
 		conf.BatchSize = *batchSize
@@ -86,8 +80,8 @@ func main() {
 			HealthHandler: v1a.Handler("ft-content_rw_neo4j ServiceModule", "Writes 'content' to Neo4j, usually as part of a bulk upload done on a schedule", checks...),
 			Port:          *port,
 			ServiceName:   "content-rw-neo4j",
-			Env:           *env,
-			EnableReqLog:  false,
+			Env:           "local",
+			EnableReqLog:  true,
 		})
 	}
 	log.SetLevel(log.InfoLevel)
@@ -98,8 +92,8 @@ func main() {
 func makeCheck(service baseftrwapp.Service, cr neoutils.CypherRunner) v1a.Check {
 	return v1a.Check{
 		BusinessImpact:   "Cannot read/write content via this writer",
-		Name:             "Check connectivity to Neo4j - neoUrl is a parameter in hieradata for this service",
-		PanicGuide:       "TODO - write panic guide",
+		Name:             "Check connectivity to Neo4j",
+		PanicGuide:       "https://dewey.ft.com/upp-content-rw-neo4j.html",
 		Severity:         1,
 		TechnicalSummary: fmt.Sprintf("Cannot connect to Neo4j instance %s with something written to it", cr),
 		Checker:          func() (string, error) { return "", service.Check() },
