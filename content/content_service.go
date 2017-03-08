@@ -127,7 +127,7 @@ func (pcd service) Write(thing interface{}) error {
 	}
 
 	if c.ContentPackage != "" {
-		log.Infof("There is a content package with uuid=%v attached to Article with uuid=%v", c.StoryPackage, c.UUID)
+		log.Infof("There is a content package with uuid=%v attached to Article with uuid=%v", c.ContentPackage, c.UUID)
 		addContentPackageRelationQuery := addContentPackageRelationQuery(c.UUID, c.ContentPackage)
 		queries = append(queries, addContentPackageRelationQuery)
 	}
