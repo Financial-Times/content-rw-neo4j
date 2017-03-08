@@ -2,15 +2,12 @@ package content
 
 import (
 	"encoding/json"
-	"regexp"
 	"time"
 
 	"github.com/Financial-Times/neo-utils-go/neoutils"
 	log "github.com/Sirupsen/logrus"
 	"github.com/jmcvetta/neoism"
 )
-
-var uuidExtractRegex = regexp.MustCompile(".*/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$")
 
 // CypherDriver - CypherDriver
 type service struct {
