@@ -2,15 +2,12 @@ package content
 
 import (
 	"encoding/json"
-	"regexp"
 	"time"
 
 	"github.com/Financial-Times/neo-utils-go/neoutils"
 	log "github.com/Sirupsen/logrus"
 	"github.com/jmcvetta/neoism"
 )
-
-var uuidExtractRegex = regexp.MustCompile(".*/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$")
 
 // CypherDriver - CypherDriver
 type service struct {
@@ -42,9 +39,14 @@ func (pcd service) Read(uuid string) (interface{}, bool, error) {
 
 	query := &neoism.CypherQuery{
 		Statement: `MATCH (n:Content {uuid:{uuid}})
-			OPTIONAL MATCH (sp:Thing)-[rel:IS_CURATED_FOR]->(n)
-			WITH n,sp
-			return n.uuid as uuid, n.title as title, n.publishedDate as publishedDate, sp.uuid as storyPackage`,
+			OPTIONAL MATCH (sp:Thing)-[rel1:IS_CURATED_FOR]->(n)
+			OPTIONAL MATCH (n)-[rel2:CONTAINS]->(cp:Thing)
+			WITH n,sp,cp
+			return  n.uuid as uuid,
+				n.title as title,
+				n.publishedDate as publishedDate,
+				sp.uuid as storyPackage,
+				cp.uuid as contentPackage`,
 		Parameters: map[string]interface{}{
 			"uuid": uuid,
 		},
@@ -64,10 +66,11 @@ func (pcd service) Read(uuid string) (interface{}, bool, error) {
 	result := results[0]
 
 	contentItem := content{
-		UUID:          result.UUID,
-		Title:         result.Title,
-		PublishedDate: result.PublishedDate,
-		StoryPackage:  result.StoryPackage,
+		UUID:          	result.UUID,
+		Title:         	result.Title,
+		PublishedDate: 	result.PublishedDate,
+		StoryPackage:  	result.StoryPackage,
+		ContentPackage:	result.ContentPackage,
 	}
 	return contentItem, true, nil
 }
@@ -104,8 +107,9 @@ func (pcd service) Write(thing interface{}) error {
 
 	deleteEntityRelationshipsQuery := &neoism.CypherQuery{
 		Statement: `MATCH (t:Thing {uuid:{uuid}})
-				OPTIONAL MATCH (c:Thing)-[rel:IS_CURATED_FOR]->(t)
-				DELETE rel`,
+				OPTIONAL MATCH (c:Thing)-[rel1:IS_CURATED_FOR]->(t)
+				OPTIONAL MATCH (cp:Thing)<-[rel2:CONTAINS]-(t)
+				DELETE rel1, rel2`,
 		Parameters: map[string]interface{}{
 			"uuid": c.UUID,
 		},
@@ -115,8 +119,14 @@ func (pcd service) Write(thing interface{}) error {
 
 	if c.StoryPackage != "" {
 		log.Infof("There is a story package with uuid=%v attached to Article with uuid=%v", c.StoryPackage, c.UUID)
-		addStoryPackageRelationQuery := addPackageRelationQuery(c.UUID, c.StoryPackage)
+		addStoryPackageRelationQuery := addStoryPackageRelationQuery(c.UUID, c.StoryPackage)
 		queries = append(queries, addStoryPackageRelationQuery)
+	}
+
+	if c.ContentPackage != "" {
+		log.Infof("There is a content package with uuid=%v attached to Article with uuid=%v", c.ContentPackage, c.UUID)
+		addContentPackageRelationQuery := addContentPackageRelationQuery(c.UUID, c.ContentPackage)
+		queries = append(queries, addContentPackageRelationQuery)
 	}
 
 	statement := `MERGE (n:Thing {uuid: {uuid}})
@@ -136,10 +146,25 @@ func (pcd service) Write(thing interface{}) error {
 }
 
 
-func addPackageRelationQuery(articleUuid, packageUuid string) *neoism.CypherQuery {
+func addStoryPackageRelationQuery(articleUuid, packageUuid string) *neoism.CypherQuery {
 	statement := `	MERGE(sp:Thing{uuid:{packageUuid}})
 			MERGE(c:Thing{uuid:{contentUuid}})
 			MERGE(c)<-[rel:IS_CURATED_FOR]-(sp)`
+
+	query := &neoism.CypherQuery{
+		Statement: statement,
+		Parameters: map[string]interface{}{
+			"packageUuid": packageUuid,
+			"contentUuid": articleUuid,
+		},
+	}
+	return query
+}
+
+func addContentPackageRelationQuery(articleUuid, packageUuid string) *neoism.CypherQuery {
+	statement := `	MERGE(cp:Thing{uuid:{packageUuid}})
+			MERGE(c:Thing{uuid:{contentUuid}})
+			MERGE(c)-[rel:CONTAINS]->(cp)`
 
 	query := &neoism.CypherQuery{
 		Statement: statement,
@@ -156,9 +181,11 @@ func (pcd service) Delete(uuid string) (bool, error) {
 	clearNode := &neoism.CypherQuery{
 		Statement: `
 			MATCH (p:Thing {uuid: {uuid}})
-			OPTIONAL MATCH (sp:Thing)-[rel:IS_CURATED_FOR]->(p)
+			OPTIONAL MATCH (sp:Thing)-[rel1:IS_CURATED_FOR]->(p)
+			OPTIONAL MATCH (p)-[rel2:CONTAINS]->(contained_cp:Thing)
+			OPTIONAL MATCH (containing_cp:Thing)-[rel3:CONTAINS]->(p)
 			REMOVE p:Content
-			DELETE rel
+			DELETE rel1, rel2, rel3
 			SET p={props}
 		`,
 		Parameters: map[string]interface{}{

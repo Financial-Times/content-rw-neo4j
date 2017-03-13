@@ -6,4 +6,5 @@ type content struct {
 	PublishedDate string  `json:"publishedDate,omitempty"`
 	Body          string  `json:"body,omitempty"`
 	StoryPackage  string  `json:"storyPackage,omitempty"`
+	ContentPackage  string  `json:"contentPackage,omitempty"`
 }
