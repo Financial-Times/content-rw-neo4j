@@ -25,6 +25,19 @@ var contentWithoutABody = content{
 	Title: "Missing Body",
 }
 
+var contentPlaceholder = content{
+	UUID:  noBodyContentUuid,
+	Title: "Missing Body",
+	Type: "Content",
+}
+
+var contentWithoutABodyWithType = content{
+	UUID:  noBodyContentUuid,
+	Title: "Missing Body",
+	Type: "MediaResource",
+
+}
+
 var standardContent = content{
 	UUID:          contentUUID,
 	Title:         "Content Title",
@@ -234,7 +247,7 @@ func TestWritePrefLabelIsAlsoWrittenAndIsEqualToTitle(t *testing.T) {
 	assert.Equal(standardContent.Title, result[0].PrefLabel, "PrefLabel should be 'Content Title'")
 }
 
-func TestContentWontBeWrittenIfNoBody(t *testing.T) {
+func TestContentWontBeWrittenIfNoBodyNoType(t *testing.T) {
 	assert := assert.New(t)
 	db := getDatabaseConnectionAndCheckClean(t, assert)
 	contentDriver := getCypherDriver(db)
@@ -246,6 +259,37 @@ func TestContentWontBeWrittenIfNoBody(t *testing.T) {
 	assert.NoError(err)
 	assert.Equal(content{}, storedContent, "No content should be written when the content has no body")
 }
+
+func TestContentWontBeWrittenIfNoBodyWithInvalidType(t *testing.T) {
+	assert := assert.New(t)
+	db := getDatabaseConnectionAndCheckClean(t, assert)
+	contentDriver := getCypherDriver(db)
+	defer cleanDB(db, t, assert)
+
+	assert.NoError(contentDriver.Write(contentWithoutABodyWithType), "Failed to write content")
+	storedContent, _, err := contentDriver.Read(contentWithoutABodyWithType.UUID)
+
+	assert.NoError(err)
+	assert.Equal(content{}, storedContent, "No content should be written when the content has no body")
+}
+
+func TestContentPlaceholderWillBeWritten(t *testing.T) {
+	assert := assert.New(t)
+	db := getDatabaseConnectionAndCheckClean(t, assert)
+	contentDriver := getCypherDriver(db)
+	defer cleanDB(db, t, assert)
+
+	assert.NoError(contentDriver.Write(contentPlaceholder), "Failed to write content")
+
+	storedContent, _, err := contentDriver.Read(contentPlaceholder.UUID)
+	assert.NoError(err)
+	assert.NotEmpty(storedContent, "Failed to retireve stored content")
+	actualContent := storedContent.(content)
+
+	assert.Equal(contentPlaceholder.UUID, actualContent.UUID, "Failed to match UUID")
+	assert.Equal(contentPlaceholder.Title, actualContent.Title, "Failed to match Title")
+}
+
 
 func getDatabaseConnectionAndCheckClean(t *testing.T, assert *assert.Assertions) neoutils.NeoConnection {
 	db := getDatabaseConnection(assert)
