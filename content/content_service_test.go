@@ -13,13 +13,13 @@ import (
 )
 
 const (
-	contentUUID        = "ce3f2f5e-33d1-4c36-89e3-51aa00fd5660"
-	conceptUUID        = "412e4ca3-f8d5-4456-8606-064c1dba3c45"
-	noBodyContentUuid  = "6440aa4a-1298-4a49-9346-78d546bc0229"
-	noBodyInvalidTypeContentUuid  = "1674d8b6-f3b2-4f18-9f3b-e28bcf5553a0"
-	contentPlaceholderUuid  = "ed2d9fc2-b515-4f7d-8b4e-3b0c1fa90986"
-	storyPackageUUID   = "3b08c76c-7479-461d-9f0e-a4e92dca56f7"
-	contentPackageUUID = "45163790-eec9-11e6-abbc-ee7d9c5b3b90"
+	contentUUID                  = "ce3f2f5e-33d1-4c36-89e3-51aa00fd5660"
+	conceptUUID                  = "412e4ca3-f8d5-4456-8606-064c1dba3c45"
+	noBodyContentUuid            = "6440aa4a-1298-4a49-9346-78d546bc0229"
+	noBodyInvalidTypeContentUuid = "1674d8b6-f3b2-4f18-9f3b-e28bcf5553a0"
+	contentPlaceholderUuid       = "ed2d9fc2-b515-4f7d-8b4e-3b0c1fa90986"
+	storyPackageUUID             = "3b08c76c-7479-461d-9f0e-a4e92dca56f7"
+	contentPackageUUID           = "45163790-eec9-11e6-abbc-ee7d9c5b3b90"
 )
 
 var contentWithoutABody = content{
@@ -30,14 +30,13 @@ var contentWithoutABody = content{
 var contentPlaceholder = content{
 	UUID:  contentPlaceholderUuid,
 	Title: "Missing Body",
-	Type: "Content",
+	Type:  "Content",
 }
 
 var contentWithoutABodyWithType = content{
 	UUID:  noBodyInvalidTypeContentUuid,
 	Title: "Missing Body",
-	Type: "MediaResource",
-
+	Type:  "MediaResource",
 }
 
 var standardContent = content{
@@ -360,7 +359,6 @@ func TestContentPlaceholderWillBeWritten(t *testing.T) {
 	assert.Equal(contentPlaceholder.UUID, actualContent.UUID, "Failed to match UUID")
 	assert.Equal(contentPlaceholder.Title, actualContent.Title, "Failed to match Title")
 }
-
 
 func getDatabaseConnectionAndCheckClean(t *testing.T, assert *assert.Assertions) neoutils.NeoConnection {
 	db := getDatabaseConnection(assert)
