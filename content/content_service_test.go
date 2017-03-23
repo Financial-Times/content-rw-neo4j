@@ -13,11 +13,11 @@ import (
 )
 
 const (
-	contentUUID 		= "ce3f2f5e-33d1-4c36-89e3-51aa00fd5660"
-	conceptUUID             = "412e4ca3-f8d5-4456-8606-064c1dba3c45"
-	noBodyContentUuid	= "6440aa4a-1298-4a49-9346-78d546bc0229"
-	storyPackageUUID        = "3b08c76c-7479-461d-9f0e-a4e92dca56f7"
-	contentPackageUUID      = "45163790-eec9-11e6-abbc-ee7d9c5b3b90"
+	contentUUID        = "ce3f2f5e-33d1-4c36-89e3-51aa00fd5660"
+	conceptUUID        = "412e4ca3-f8d5-4456-8606-064c1dba3c45"
+	noBodyContentUuid  = "6440aa4a-1298-4a49-9346-78d546bc0229"
+	storyPackageUUID   = "3b08c76c-7479-461d-9f0e-a4e92dca56f7"
+	contentPackageUUID = "45163790-eec9-11e6-abbc-ee7d9c5b3b90"
 )
 
 var contentWithoutABody = content{
@@ -44,7 +44,15 @@ var standardContent = content{
 	PublishedDate: "1970-01-01T01:00:00.000Z",
 	Body:          "Some body",
 	StoryPackage:  storyPackageUUID,
-	ContentPackage:	contentPackageUUID,
+}
+
+var standardContentPackage = content{
+	UUID:           contentUUID,
+	Title:          "Content Title",
+	PublishedDate:  "1970-01-01T01:00:00.000Z",
+	Body:           "Some body",
+	StoryPackage:   storyPackageUUID,
+	ContentPackage: contentPackageUUID,
 }
 
 var shorterContent = content{
@@ -53,10 +61,10 @@ var shorterContent = content{
 }
 
 var updatedContent = content{
-	UUID: contentUUID,
-	Title: "New Ttitle",
+	UUID:          contentUUID,
+	Title:         "New Ttitle",
 	PublishedDate: "1999-12-12T01:00:00.000Z",
-	Body: "Doesn't matter",
+	Body:          "Doesn't matter",
 }
 
 func TestDeleteWithNoRelsIsDeleted(t *testing.T) {
@@ -169,7 +177,7 @@ func TestUpdateWillRemovePropertiesNoLongerPresent(t *testing.T) {
 	contentDriver := getCypherDriver(db)
 	defer cleanDB(db, t, assert)
 
-	assert.NoError(contentDriver.Write(standardContent), "Failed to write content")
+	assert.NoError(contentDriver.Write(standardContentPackage), "Failed to write content")
 	storedContent, _, err := contentDriver.Read(contentUUID)
 
 	assert.NoError(err)
@@ -247,7 +255,68 @@ func TestWritePrefLabelIsAlsoWrittenAndIsEqualToTitle(t *testing.T) {
 	assert.Equal(standardContent.Title, result[0].PrefLabel, "PrefLabel should be 'Content Title'")
 }
 
-func TestContentWontBeWrittenIfNoBodyNoType(t *testing.T) {
+func TestWriteNodeLabelsAreWrittenForContent(t *testing.T) {
+	assert := assert.New(t)
+
+	db := getDatabaseConnectionAndCheckClean(t, assert)
+	contentDriver := getCypherDriver(db)
+	defer cleanDB(db, t, assert)
+
+	contentDriver.Write(standardContent)
+
+	result := []struct {
+		NodeLabels []string `json:"labels(t)"`
+	}{}
+
+	getNodeLabelsQuery := &neoism.CypherQuery{
+		Statement: `
+				MATCH (t:Content {uuid:{uuid}}) RETURN labels(t)
+				`,
+		Parameters: neoism.Props{
+			"uuid": standardContent.UUID,
+		},
+		Result: &result,
+	}
+
+	err := contentDriver.conn.CypherBatch([]*neoism.CypherQuery{getNodeLabelsQuery})
+	assert.NoError(err)
+	assert.Len(result[0].NodeLabels, 2, "There should be 2 node labels: Thing, Content")
+	assert.Equal("Thing", result[0].NodeLabels[0], "Thing should be the parent label")
+	assert.Equal("Content", result[0].NodeLabels[1], "Content should be the child label")
+}
+
+func TestWriteNodeLabelsAreWrittenForContentPackage(t *testing.T) {
+	assert := assert.New(t)
+
+	db := getDatabaseConnectionAndCheckClean(t, assert)
+	contentDriver := getCypherDriver(db)
+	defer cleanDB(db, t, assert)
+
+	contentDriver.Write(standardContentPackage)
+
+	result := []struct {
+		NodeLabels []string `json:"labels(t)"`
+	}{}
+
+	getNodeLabelsQuery := &neoism.CypherQuery{
+		Statement: `
+				MATCH (t:Content {uuid:{uuid}}) RETURN labels(t)
+				`,
+		Parameters: neoism.Props{
+			"uuid": standardContent.UUID,
+		},
+		Result: &result,
+	}
+
+	err := contentDriver.conn.CypherBatch([]*neoism.CypherQuery{getNodeLabelsQuery})
+	assert.NoError(err)
+	assert.Len(result[0].NodeLabels, 3, "There should be 3 node labels: Thing, Content, ContentPackage")
+	assert.Equal("Thing", result[0].NodeLabels[0], "Thing should be the grandparent label")
+	assert.Equal("Content", result[0].NodeLabels[1], "Content should be the parent label")
+	assert.Equal("ContentPackage", result[0].NodeLabels[2], "ContentPackage should be the child label")
+}
+
+func TestContentWontBeWrittenIfNoBody(t *testing.T) {
 	assert := assert.New(t)
 	db := getDatabaseConnectionAndCheckClean(t, assert)
 	contentDriver := getCypherDriver(db)
@@ -348,8 +417,8 @@ func writeRelationship(db neoutils.NeoConnection, contentId string, conceptId st
 
 func doesThingExist(uuid string, db neoutils.NeoConnection) (bool, error) {
 
-	result := []struct{
-		UUID  string  `json:"uuid,omitempty"`
+	result := []struct {
+		UUID string `json:"uuid,omitempty"`
 	}{}
 	query := &neoism.CypherQuery{
 		Statement: "MATCH (t:Thing {uuid:{uuid}}) RETURN t.uuid as uuid",
@@ -415,7 +484,7 @@ func checkDbClean(db neoutils.CypherRunner, t *testing.T) {
 			MATCH (t:Thing) WHERE t.uuid in {uuids} RETURN t.uuid
 		`,
 		Parameters: neoism.Props{
-			"uuids": []string{standardContent.UUID, conceptUUID },
+			"uuids": []string{standardContent.UUID, conceptUUID},
 		},
 		Result: &result,
 	}

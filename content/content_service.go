@@ -66,11 +66,11 @@ func (pcd service) Read(uuid string) (interface{}, bool, error) {
 	result := results[0]
 
 	contentItem := content{
-		UUID:          	result.UUID,
-		Title:         	result.Title,
-		PublishedDate: 	result.PublishedDate,
-		StoryPackage:  	result.StoryPackage,
-		ContentPackage:	result.ContentPackage,
+		UUID:           result.UUID,
+		Title:          result.Title,
+		PublishedDate:  result.PublishedDate,
+		StoryPackage:   result.StoryPackage,
+		ContentPackage: result.ContentPackage,
 	}
 	return contentItem, true, nil
 }
@@ -117,6 +117,8 @@ func (pcd service) Write(thing interface{}) error {
 
 	queries := []*neoism.CypherQuery{deleteEntityRelationshipsQuery}
 
+	labels := `:Content`
+
 	if c.StoryPackage != "" {
 		log.Infof("There is a story package with uuid=%v attached to Article with uuid=%v", c.StoryPackage, c.UUID)
 		addStoryPackageRelationQuery := addStoryPackageRelationQuery(c.UUID, c.StoryPackage)
@@ -127,11 +129,12 @@ func (pcd service) Write(thing interface{}) error {
 		log.Infof("There is a content package with uuid=%v attached to Article with uuid=%v", c.ContentPackage, c.UUID)
 		addContentPackageRelationQuery := addContentPackageRelationQuery(c.UUID, c.ContentPackage)
 		queries = append(queries, addContentPackageRelationQuery)
+		labels = labels + `:ContentPackage`
 	}
 
 	statement := `MERGE (n:Thing {uuid: {uuid}})
 		      set n={allprops}
-		      set n :Content`
+		      set n ` + labels
 
 	writeContentQuery := &neoism.CypherQuery{
 		Statement: statement,
@@ -144,7 +147,6 @@ func (pcd service) Write(thing interface{}) error {
 	queries = append(queries, writeContentQuery)
 	return pcd.conn.CypherBatch(queries)
 }
-
 
 func addStoryPackageRelationQuery(articleUuid, packageUuid string) *neoism.CypherQuery {
 	statement := `	MERGE(sp:Thing{uuid:{packageUuid}})
@@ -253,4 +255,3 @@ func (pcd service) Count() (int, error) {
 
 	return results[0].Count, nil
 }
-
