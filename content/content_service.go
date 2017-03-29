@@ -80,7 +80,7 @@ func (pcd service) Write(thing interface{}) error {
 	c := thing.(content)
 
 	// Only Articles have a body
-	if c.Body == "" {
+	if c.Body == "" && c.Type != "Content" {
 		log.Infof("There is no body with this content item therefore assuming is it not an Article: %v", c.UUID)
 		return nil
 	}

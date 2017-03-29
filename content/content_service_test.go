@@ -13,16 +13,30 @@ import (
 )
 
 const (
-	contentUUID        = "ce3f2f5e-33d1-4c36-89e3-51aa00fd5660"
-	conceptUUID        = "412e4ca3-f8d5-4456-8606-064c1dba3c45"
-	noBodyContentUuid  = "6440aa4a-1298-4a49-9346-78d546bc0229"
-	storyPackageUUID   = "3b08c76c-7479-461d-9f0e-a4e92dca56f7"
-	contentPackageUUID = "45163790-eec9-11e6-abbc-ee7d9c5b3b90"
+	contentUUID                  = "ce3f2f5e-33d1-4c36-89e3-51aa00fd5660"
+	conceptUUID                  = "412e4ca3-f8d5-4456-8606-064c1dba3c45"
+	noBodyContentUuid            = "6440aa4a-1298-4a49-9346-78d546bc0229"
+	noBodyInvalidTypeContentUuid = "1674d8b6-f3b2-4f18-9f3b-e28bcf5553a0"
+	contentPlaceholderUuid       = "ed2d9fc2-b515-4f7d-8b4e-3b0c1fa90986"
+	storyPackageUUID             = "3b08c76c-7479-461d-9f0e-a4e92dca56f7"
+	contentPackageUUID           = "45163790-eec9-11e6-abbc-ee7d9c5b3b90"
 )
 
 var contentWithoutABody = content{
 	UUID:  noBodyContentUuid,
 	Title: "Missing Body",
+}
+
+var contentPlaceholder = content{
+	UUID:  contentPlaceholderUuid,
+	Title: "Missing Body",
+	Type:  "Content",
+}
+
+var contentWithoutABodyWithType = content{
+	UUID:  noBodyInvalidTypeContentUuid,
+	Title: "Missing Body",
+	Type:  "MediaResource",
 }
 
 var standardContent = content{
@@ -314,6 +328,36 @@ func TestContentWontBeWrittenIfNoBody(t *testing.T) {
 
 	assert.NoError(err)
 	assert.Equal(content{}, storedContent, "No content should be written when the content has no body")
+}
+
+func TestContentWontBeWrittenIfNoBodyWithInvalidType(t *testing.T) {
+	assert := assert.New(t)
+	db := getDatabaseConnectionAndCheckClean(t, assert)
+	contentDriver := getCypherDriver(db)
+	defer cleanDB(db, t, assert)
+
+	assert.NoError(contentDriver.Write(contentWithoutABodyWithType), "Failed to write content")
+	storedContent, _, err := contentDriver.Read(contentWithoutABodyWithType.UUID)
+
+	assert.NoError(err)
+	assert.Equal(content{}, storedContent, "No content should be written when the content has no body")
+}
+
+func TestContentPlaceholderWillBeWritten(t *testing.T) {
+	assert := assert.New(t)
+	db := getDatabaseConnectionAndCheckClean(t, assert)
+	contentDriver := getCypherDriver(db)
+	defer cleanDB(db, t, assert)
+
+	assert.NoError(contentDriver.Write(contentPlaceholder), "Failed to write content")
+
+	storedContent, _, err := contentDriver.Read(contentPlaceholder.UUID)
+	assert.NoError(err)
+	assert.NotEmpty(storedContent, "Failed to retireve stored content")
+	actualContent := storedContent.(content)
+
+	assert.Equal(contentPlaceholder.UUID, actualContent.UUID, "Failed to match UUID")
+	assert.Equal(contentPlaceholder.Title, actualContent.Title, "Failed to match Title")
 }
 
 func getDatabaseConnectionAndCheckClean(t *testing.T, assert *assert.Assertions) neoutils.NeoConnection {
