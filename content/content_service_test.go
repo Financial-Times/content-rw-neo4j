@@ -15,26 +15,33 @@ import (
 const (
 	contentUUID                  = "ce3f2f5e-33d1-4c36-89e3-51aa00fd5660"
 	conceptUUID                  = "412e4ca3-f8d5-4456-8606-064c1dba3c45"
-	noBodyContentUuid            = "6440aa4a-1298-4a49-9346-78d546bc0229"
-	noBodyInvalidTypeContentUuid = "1674d8b6-f3b2-4f18-9f3b-e28bcf5553a0"
-	contentPlaceholderUuid       = "ed2d9fc2-b515-4f7d-8b4e-3b0c1fa90986"
+	noBodyContentUUID            = "6440aa4a-1298-4a49-9346-78d546bc0229"
+	noBodyInvalidTypeContentUUID = "1674d8b6-f3b2-4f18-9f3b-e28bcf5553a0"
+	contentPlaceholderUUID       = "ed2d9fc2-b515-4f7d-8b4e-3b0c1fa90986"
+	videoContentUUID             = "41bb9444-e3cf-46d4-8182-6702844dc5c1"
 	storyPackageUUID             = "3b08c76c-7479-461d-9f0e-a4e92dca56f7"
 	contentPackageUUID           = "45163790-eec9-11e6-abbc-ee7d9c5b3b90"
 )
 
 var contentWithoutABody = content{
-	UUID:  noBodyContentUuid,
+	UUID:  noBodyContentUUID,
 	Title: "Missing Body",
 }
 
 var contentPlaceholder = content{
-	UUID:  contentPlaceholderUuid,
+	UUID:  contentPlaceholderUUID,
 	Title: "Missing Body",
 	Type:  "Content",
 }
 
 var contentWithoutABodyWithType = content{
-	UUID:  noBodyInvalidTypeContentUuid,
+	UUID:  noBodyInvalidTypeContentUUID,
+	Title: "Missing Body",
+	Type:  "Image",
+}
+
+var videoContent = content{
+	UUID:  videoContentUUID,
 	Title: "Missing Body",
 	Type:  "MediaResource",
 }
@@ -344,20 +351,28 @@ func TestContentWontBeWrittenIfNoBodyWithInvalidType(t *testing.T) {
 }
 
 func TestContentPlaceholderWillBeWritten(t *testing.T) {
+	testContentWillBeWritten(t, contentPlaceholder)
+}
+
+func TestVideoContentWillBeWritten(t *testing.T) {
+	testContentWillBeWritten(t, videoContent)
+}
+
+func testContentWillBeWritten(t *testing.T, c content) {
 	assert := assert.New(t)
 	db := getDatabaseConnectionAndCheckClean(t, assert)
 	contentDriver := getCypherDriver(db)
 	defer cleanDB(db, t, assert)
 
-	assert.NoError(contentDriver.Write(contentPlaceholder), "Failed to write content")
+	assert.NoError(contentDriver.Write(c), "Failed to write content")
 
-	storedContent, _, err := contentDriver.Read(contentPlaceholder.UUID)
+	storedContent, _, err := contentDriver.Read(c.UUID)
 	assert.NoError(err)
 	assert.NotEmpty(storedContent, "Failed to retireve stored content")
 	actualContent := storedContent.(content)
 
-	assert.Equal(contentPlaceholder.UUID, actualContent.UUID, "Failed to match UUID")
-	assert.Equal(contentPlaceholder.Title, actualContent.Title, "Failed to match Title")
+	assert.Equal(c.UUID, actualContent.UUID, "Failed to match UUID")
+	assert.Equal(c.Title, actualContent.Title, "Failed to match Title")
 }
 
 func getDatabaseConnectionAndCheckClean(t *testing.T, assert *assert.Assertions) neoutils.NeoConnection {
@@ -388,13 +403,25 @@ func cleanDB(db neoutils.CypherRunner, t *testing.T, assert *assert.Assertions) 
 		{
 			Statement: fmt.Sprintf("MATCH (fc:Thing {uuid: '%v'}) DETACH DELETE fc", contentUUID),
 		},
+		{
+			Statement: fmt.Sprintf("MATCH (fc:Thing {uuid: '%v'}) DETACH DELETE fc", videoContentUUID),
+		},
+		{
+			Statement: fmt.Sprintf("MATCH (fc:Thing {uuid: '%v'}) DETACH DELETE fc", storyPackageUUID),
+		},
+		{
+			Statement: fmt.Sprintf("MATCH (fc:Thing {uuid: '%v'}) DETACH DELETE fc", contentPackageUUID),
+		},
+		{
+			Statement: fmt.Sprintf("MATCH (fc:Thing {uuid: '%v'}) DETACH DELETE fc", contentPlaceholderUUID),
+		},
 	}
 
 	err := db.CypherBatch(qs)
 	assert.NoError(err)
 }
 
-func writeRelationship(db neoutils.NeoConnection, contentId string, conceptId string, t *testing.T, assert *assert.Assertions) {
+func writeRelationship(db neoutils.NeoConnection, contentID string, conceptID string, t *testing.T, assert *assert.Assertions) {
 	var annotateQuery string
 	var qs []*neoism.CypherQuery
 
@@ -407,7 +434,7 @@ func writeRelationship(db neoutils.NeoConnection, contentId string, conceptId st
 	qs = []*neoism.CypherQuery{
 		{
 			Statement:  annotateQuery,
-			Parameters: neoism.Props{"contentId": contentId, "conceptId": conceptId},
+			Parameters: neoism.Props{"contentId": contentID, "conceptId": conceptID},
 		},
 	}
 
