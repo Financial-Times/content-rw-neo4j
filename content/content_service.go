@@ -80,7 +80,7 @@ func (cd service) Write(thing interface{}) error {
 	c := thing.(content)
 
 	// Letting through only articles (which have body), content packages and videos
-	if c.Body == "" && c.Type != "Content" && c.Type != "MediaResource" {
+	if c.Body == "" && c.Type != "Content" && c.Type != "Video" {
 		log.Infof("There is no body with this content item therefore assuming is it not an Article: %v", c.UUID)
 		return nil
 	}
