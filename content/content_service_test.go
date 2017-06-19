@@ -43,7 +43,7 @@ var contentWithoutABodyWithType = content{
 var videoContent = content{
 	UUID:  videoContentUUID,
 	Title: "Missing Body",
-	Type:  "MediaResource",
+	Type:  "Video",
 }
 
 var standardContent = content{
