@@ -1,0 +1,4 @@
+apiVersion: v1
+description: A Helm chart for Kubernetes
+name: content-rw-neo4j
+version: 0.1.0 # this entry can be left blank as it is automatically handled by Jenkins pipeline

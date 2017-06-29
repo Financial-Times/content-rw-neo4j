@@ -1,0 +1,58 @@
+##this is an example deployment.yaml that should be customized in order to meet the configuration for app k8s deployment
+
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: {{ .Values.service.name }} 
+  labels:
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}" 
+    visualize: "true" 
+    app: {{ .Values.service.name }} 
+spec:
+  replicas: {{ .Values.replicaCount }} 
+  selector: 
+    matchLabels:
+      app: {{ .Values.service.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.service.name }}
+        visualize: "true" 
+    spec:
+      containers: 
+      - name: {{ .Chart.Name }} 
+        image: "{{ .Values.image.repository }}:{{ required "Please provide a valid docker image version by adding the argument at install '--set image.version=...'" .Values.image.version }}" 
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        env: 
+        - name: NEO_URL 
+          valueFrom:
+            configMapKeyRef:
+              name: global-config
+              key: neo4j.read.write.url  
+        - name: BATCH_SIZE
+          valueFrom:
+            configMapKeyRef:
+              name: global-config
+              key: neo4j.statements.batch.size	
+        - name: GRAPHITE_ADDRESS
+          valueFrom:
+            configMapKeyRef:
+              name: global-config
+              key: graphite.address
+        - name: GRAPHITE_PREFIX
+          value: "{{ .Values.env.graphite-prefix }}"
+        ports: 
+        - containerPort: 8080 
+        livenessProbe: 
+          tcpSocket: 
+            port: 8080 
+          initialDelaySeconds: 10 
+        readinessProbe: 
+          httpGet: 
+            path: "/__gtg" 
+            port: 8080 
+          initialDelaySeconds: 15 
+          periodSeconds: 30 
+        resources: 
+{{ toYaml .Values.resources | indent 12 }}
+
