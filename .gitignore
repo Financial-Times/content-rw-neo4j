@@ -1,4 +1,2 @@
-content-rw-neo4j*
-!helm/content-rw-neo4j
 *.log
 .idea
