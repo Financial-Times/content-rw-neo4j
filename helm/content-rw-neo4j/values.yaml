@@ -7,7 +7,6 @@ service:
 replicaCount: 2
 image:
   repository: coco/content-rw-neo4j
-  version: "" 
   pullPolicy: IfNotPresent
 resources:
   limits:
