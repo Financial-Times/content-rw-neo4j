@@ -40,7 +40,7 @@ spec:
               name: global-config
               key: graphite.address
         - name: GRAPHITE_PREFIX
-          value: "{{ .Values.env.graphite-prefix }}"
+          value: "{{ .Values.env.graphite.prefix }}"
         ports: 
         - containerPort: 8080 
         livenessProbe: 
