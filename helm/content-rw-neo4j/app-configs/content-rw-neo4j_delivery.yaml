@@ -2,5 +2,5 @@
 replicaCount: 2
 service:
   name: content-rw-neo4j
-env
+env:
   graphite-prefix: "coco.services.k8s.content-rw-neo4j"
