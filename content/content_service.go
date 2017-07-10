@@ -27,8 +27,8 @@ func (cd service) Initialise() error {
 }
 
 // Check - Feeds into the Healthcheck and checks whether we can connect to Neo and that the datastore isn't empty
-func (pcd service) Check() error {
-	return neoutils.Check(pcd.conn)
+func (cd service) Check() error {
+	return neoutils.Check(cd.conn)
 }
 
 // Read - reads a content given a UUID
@@ -48,12 +48,12 @@ func (pcd service) Read(uuid string, transId string) (interface{}, bool, error) 
 				sp.uuid as storyPackage,
 				cp.uuid as contentPackage`,
 		Parameters: map[string]interface{}{
-			"uuid": uuid,
+			"uuid": UUID,
 		},
 		Result: &results,
 	}
 
-	err := pcd.conn.CypherBatch([]*neoism.CypherQuery{query})
+	err := cd.conn.CypherBatch([]*neoism.CypherQuery{query})
 
 	if err != nil {
 		return content{}, false, err
@@ -79,8 +79,8 @@ func (pcd service) Read(uuid string, transId string) (interface{}, bool, error) 
 func (pcd service) Write(thing interface{}, transId string) error {
 	c := thing.(content)
 
-	// Only Articles have a body
-	if c.Body == "" && c.Type != "Content" {
+	// Letting through only articles (which have body), content packages and videos
+	if c.Body == "" && c.Type != "Content" && c.Type != "Video" {
 		log.Infof("There is no body with this content item therefore assuming is it not an Article: %v", c.UUID)
 		return nil
 	}
@@ -145,10 +145,10 @@ func (pcd service) Write(thing interface{}, transId string) error {
 	}
 
 	queries = append(queries, writeContentQuery)
-	return pcd.conn.CypherBatch(queries)
+	return cd.conn.CypherBatch(queries)
 }
 
-func addStoryPackageRelationQuery(articleUuid, packageUuid string) *neoism.CypherQuery {
+func addStoryPackageRelationQuery(articleUUID, packageUUID string) *neoism.CypherQuery {
 	statement := `	MERGE(sp:Thing{uuid:{packageUuid}})
 			MERGE(c:Thing{uuid:{contentUuid}})
 			MERGE(c)<-[rel:IS_CURATED_FOR]-(sp)`
@@ -156,14 +156,14 @@ func addStoryPackageRelationQuery(articleUuid, packageUuid string) *neoism.Cyphe
 	query := &neoism.CypherQuery{
 		Statement: statement,
 		Parameters: map[string]interface{}{
-			"packageUuid": packageUuid,
-			"contentUuid": articleUuid,
+			"packageUuid": packageUUID,
+			"contentUuid": articleUUID,
 		},
 	}
 	return query
 }
 
-func addContentPackageRelationQuery(articleUuid, packageUuid string) *neoism.CypherQuery {
+func addContentPackageRelationQuery(articleUUID, packageUUID string) *neoism.CypherQuery {
 	statement := `	MERGE(cp:Thing{uuid:{packageUuid}})
 			MERGE(c:Thing{uuid:{contentUuid}})
 			MERGE(c)-[rel:CONTAINS]->(cp)`
@@ -171,8 +171,8 @@ func addContentPackageRelationQuery(articleUuid, packageUuid string) *neoism.Cyp
 	query := &neoism.CypherQuery{
 		Statement: statement,
 		Parameters: map[string]interface{}{
-			"packageUuid": packageUuid,
-			"contentUuid": articleUuid,
+			"packageUuid": packageUUID,
+			"contentUuid": articleUUID,
 		},
 	}
 	return query
@@ -212,7 +212,7 @@ func (pcd service) Delete(uuid string, transId string) (bool, error) {
 		},
 	}
 
-	err := pcd.conn.CypherBatch([]*neoism.CypherQuery{clearNode, removeNodeIfUnused})
+	err := cd.conn.CypherBatch([]*neoism.CypherQuery{clearNode, removeNodeIfUnused})
 
 	s1, err := clearNode.Stats()
 	if err != nil {
@@ -228,7 +228,7 @@ func (pcd service) Delete(uuid string, transId string) (bool, error) {
 }
 
 // DecodeJSON - Decodes JSON into content
-func (pcd service) DecodeJSON(dec *json.Decoder) (interface{}, string, error) {
+func (cd service) DecodeJSON(dec *json.Decoder) (interface{}, string, error) {
 	c := content{}
 	err := dec.Decode(&c)
 	return c, c.UUID, err
@@ -236,7 +236,7 @@ func (pcd service) DecodeJSON(dec *json.Decoder) (interface{}, string, error) {
 }
 
 // Count - Returns a count of the number of content in this Neo instance
-func (pcd service) Count() (int, error) {
+func (cd service) Count() (int, error) {
 
 	results := []struct {
 		Count int `json:"c"`
@@ -247,7 +247,7 @@ func (pcd service) Count() (int, error) {
 		Result:    &results,
 	}
 
-	err := pcd.conn.CypherBatch([]*neoism.CypherQuery{query})
+	err := cd.conn.CypherBatch([]*neoism.CypherQuery{query})
 
 	if err != nil {
 		return 0, err
