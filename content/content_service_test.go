@@ -74,13 +74,13 @@ func TestDeleteWithNoRelsIsDeleted(t *testing.T) {
 	contentDriver := getCypherDriver(db)
 	defer cleanDB(db, t, assert)
 
-	assert.NoError(contentDriver.Write(shorterContent), "Failed to write content")
+	assert.NoError(contentDriver.Write(shorterContent, "TEST_TRANS_ID"), "Failed to write content")
 
-	deleted, err := contentDriver.Delete(shorterContent.UUID)
+	deleted, err := contentDriver.Delete(shorterContent.UUID, "TEST_TRANS_ID")
 	assert.True(deleted, "Didn't manage to delete content for uuid %s", shorterContent.UUID)
 	assert.NoError(err, "Error deleting content for uuid %s", shorterContent.UUID)
 
-	c, deleted, err := contentDriver.Read(shorterContent.UUID)
+	c, deleted, err := contentDriver.Read(shorterContent.UUID, "TEST_TRANS_ID")
 
 	assert.Equal(content{}, c, "Found content %s who should have been deleted", c)
 	assert.False(deleted, "Found content for uuid %s who should have been deleted", standardContent.UUID)
@@ -93,14 +93,14 @@ func TestDeleteWithRelsBecomesThing(t *testing.T) {
 	contentDriver := getCypherDriver(db)
 	defer cleanDB(db, t, assert)
 
-	assert.NoError(contentDriver.Write(standardContent), "Failed to write content")
+	assert.NoError(contentDriver.Write(standardContent, "TEST_TRANS_ID"), "Failed to write content")
 	writeRelationship(db, standardContent.UUID, conceptUUID, t, assert)
 
-	deleted, err := contentDriver.Delete(standardContent.UUID)
+	deleted, err := contentDriver.Delete(standardContent.UUID, "TEST_TRANS_ID")
 	assert.NoError(err, "Error deleting content for uuid %s", standardContent.UUID)
 	assert.True(deleted, "Didn't manage to delete content for uuid %s", standardContent.UUID)
 
-	c, found, err := contentDriver.Read(standardContent.UUID)
+	c, found, err := contentDriver.Read(standardContent.UUID, "TEST_TRANS_ID")
 
 	assert.Equal(content{}, c, "Found content %s who should have been deleted", c)
 	assert.False(found, "Found content for uuid %s who should have been deleted", standardContent.UUID)
@@ -120,9 +120,9 @@ func TestCreateAllValuesPresent(t *testing.T) {
 	contentDriver := getCypherDriver(db)
 	defer cleanDB(db, t, assert)
 
-	assert.NoError(contentDriver.Write(standardContent), "Failed to write content")
+	assert.NoError(contentDriver.Write(standardContent, "TEST_TRANS_ID"), "Failed to write content")
 
-	storedContent, _, err := contentDriver.Read(standardContent.UUID)
+	storedContent, _, err := contentDriver.Read(standardContent.UUID, "TEST_TRANS_ID")
 	assert.NoError(err)
 	assert.NotEmpty(storedContent, "Failed to retireve stored content")
 	actualContent := storedContent.(content)
@@ -142,9 +142,9 @@ func TestCreateNotAllValuesPresent(t *testing.T) {
 	contentDriver := getCypherDriver(db)
 	defer cleanDB(db, t, assert)
 
-	assert.NoError(contentDriver.Write(shorterContent), "Failed to write content")
+	assert.NoError(contentDriver.Write(shorterContent, "TEST_TRANS_ID"), "Failed to write content")
 
-	storedContent, _, err := contentDriver.Read(shorterContent.UUID)
+	storedContent, _, err := contentDriver.Read(shorterContent.UUID, "TEST_TRANS_ID")
 
 	assert.NoError(err)
 	assert.Empty(storedContent.(content).PublishedDate)
@@ -157,15 +157,15 @@ func TestWillUpdateProperties(t *testing.T) {
 	contentDriver := getCypherDriver(db)
 	defer cleanDB(db, t, assert)
 
-	assert.NoError(contentDriver.Write(standardContent), "Failed to write content")
-	storedContent, _, err := contentDriver.Read(contentUUID)
+	assert.NoError(contentDriver.Write(standardContent, "TEST_TRANS_ID"), "Failed to write content")
+	storedContent, _, err := contentDriver.Read(contentUUID, "TEST_TRANS_ID")
 
 	assert.NoError(err)
 	assert.Equal(storedContent.(content).Title, standardContent.Title)
 	assert.Equal(storedContent.(content).PublishedDate, standardContent.PublishedDate)
 
-	assert.NoError(contentDriver.Write(updatedContent), "Failed to write updated content")
-	storedContent, _, err = contentDriver.Read(contentUUID)
+	assert.NoError(contentDriver.Write(updatedContent, "TEST_TRANS_ID"), "Failed to write updated content")
+	storedContent, _, err = contentDriver.Read(contentUUID, "TEST_TRANS_ID")
 
 	assert.NoError(err)
 	assert.Equal(storedContent.(content).Title, updatedContent.Title, "Should have updated Title but it is still present")
@@ -178,8 +178,8 @@ func TestUpdateWillRemovePropertiesNoLongerPresent(t *testing.T) {
 	contentDriver := getCypherDriver(db)
 	defer cleanDB(db, t, assert)
 
-	assert.NoError(contentDriver.Write(standardContentPackage), "Failed to write content")
-	storedContent, _, err := contentDriver.Read(contentUUID)
+	assert.NoError(contentDriver.Write(standardContentPackage, "TEST_TRANS_ID"), "Failed to write content")
+	storedContent, _, err := contentDriver.Read(contentUUID, "TEST_TRANS_ID")
 
 	assert.NoError(err)
 	assert.NotEmpty(storedContent.(content).Title)
@@ -187,8 +187,8 @@ func TestUpdateWillRemovePropertiesNoLongerPresent(t *testing.T) {
 	assert.Equal(1, checkIsCuratedForRelationship(db, storyPackageUUID, assert), "incorrect number of isCuratedFor relationships")
 	assert.Equal(1, checkContainsRelationship(db, contentPackageUUID, assert), "incorrect number of contains relationships")
 
-	assert.NoError(contentDriver.Write(shorterContent), "Failed to write updated content")
-	storedContent, _, err = contentDriver.Read(contentUUID)
+	assert.NoError(contentDriver.Write(shorterContent, "TEST_TRANS_ID"), "Failed to write updated content")
+	storedContent, _, err = contentDriver.Read(contentUUID, "TEST_TRANS_ID")
 
 	assert.NoError(err)
 	assert.NotEmpty(storedContent, "Failed to rtreive updated content")
@@ -207,7 +207,7 @@ func TestWriteCalculateEpocCorrectly(t *testing.T) {
 
 	uuid := standardContent.UUID
 	contentReceived := content{UUID: uuid, Title: "TestContent", PublishedDate: "1970-01-01T01:00:00.000Z", Body: "Some Test text"}
-	contentDriver.Write(contentReceived)
+	contentDriver.Write(contentReceived, "TEST_TRANS_ID")
 
 	result := []struct {
 		PublishedDateEpoc int `json:"t.publishedDateEpoch"`
@@ -235,7 +235,7 @@ func TestWritePrefLabelIsAlsoWrittenAndIsEqualToTitle(t *testing.T) {
 	contentDriver := getCypherDriver(db)
 	defer cleanDB(db, t, assert)
 
-	contentDriver.Write(standardContent)
+	contentDriver.Write(standardContent, "TEST_TRANS_ID")
 
 	result := []struct {
 		PrefLabel string `json:"t.prefLabel"`
@@ -263,7 +263,7 @@ func TestWriteNodeLabelsAreWrittenForContent(t *testing.T) {
 	contentDriver := getCypherDriver(db)
 	defer cleanDB(db, t, assert)
 
-	contentDriver.Write(standardContent)
+	contentDriver.Write(standardContent, "TEST_TRANS_ID")
 
 	result := []struct {
 		NodeLabels []string `json:"labels(t)"`
@@ -293,7 +293,7 @@ func TestWriteNodeLabelsAreWrittenForContentPackage(t *testing.T) {
 	contentDriver := getCypherDriver(db)
 	defer cleanDB(db, t, assert)
 
-	contentDriver.Write(standardContentPackage)
+	contentDriver.Write(standardContentPackage, "TEST_TRANS_ID")
 
 	result := []struct {
 		NodeLabels []string `json:"labels(t)"`
@@ -323,8 +323,8 @@ func TestContentWontBeWrittenIfNoBody(t *testing.T) {
 	contentDriver := getCypherDriver(db)
 	defer cleanDB(db, t, assert)
 
-	assert.NoError(contentDriver.Write(contentWithoutABody), "Failed to write content")
-	storedContent, _, err := contentDriver.Read(contentWithoutABody.UUID)
+	assert.NoError(contentDriver.Write(contentWithoutABody, "TEST_TRANS_ID"), "Failed to write content")
+	storedContent, _, err := contentDriver.Read(contentWithoutABody.UUID, "TEST_TRANS_ID")
 
 	assert.NoError(err)
 	assert.Equal(content{}, storedContent, "No content should be written when the content has no body")
@@ -336,8 +336,8 @@ func TestContentWontBeWrittenIfNoBodyWithInvalidType(t *testing.T) {
 	contentDriver := getCypherDriver(db)
 	defer cleanDB(db, t, assert)
 
-	assert.NoError(contentDriver.Write(contentWithoutABodyWithType), "Failed to write content")
-	storedContent, _, err := contentDriver.Read(contentWithoutABodyWithType.UUID)
+	assert.NoError(contentDriver.Write(contentWithoutABodyWithType, "TEST_TRANS_ID"), "Failed to write content")
+	storedContent, _, err := contentDriver.Read(contentWithoutABodyWithType.UUID, "TEST_TRANS_ID")
 
 	assert.NoError(err)
 	assert.Equal(content{}, storedContent, "No content should be written when the content has no body")
@@ -349,9 +349,9 @@ func TestContentPlaceholderWillBeWritten(t *testing.T) {
 	contentDriver := getCypherDriver(db)
 	defer cleanDB(db, t, assert)
 
-	assert.NoError(contentDriver.Write(contentPlaceholder), "Failed to write content")
+	assert.NoError(contentDriver.Write(contentPlaceholder, "TEST_TRANS_ID"), "Failed to write content")
 
-	storedContent, _, err := contentDriver.Read(contentPlaceholder.UUID)
+	storedContent, _, err := contentDriver.Read(contentPlaceholder.UUID, "TEST_TRANS_ID")
 	assert.NoError(err)
 	assert.NotEmpty(storedContent, "Failed to retireve stored content")
 	actualContent := storedContent.(content)
@@ -370,7 +370,7 @@ func getDatabaseConnectionAndCheckClean(t *testing.T, assert *assert.Assertions)
 func getDatabaseConnection(assert *assert.Assertions) neoutils.NeoConnection {
 	url := os.Getenv("NEO4J_TEST_URL")
 	if url == "" {
-		url = "http://neo4j:foobar@localhost:7474/db/data"
+		url = "http://localhost:7474/db/data"
 	}
 
 	conf := neoutils.DefaultConnectionConfig()

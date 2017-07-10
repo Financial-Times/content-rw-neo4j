@@ -32,7 +32,7 @@ func (pcd service) Check() error {
 }
 
 // Read - reads a content given a UUID
-func (pcd service) Read(uuid string) (interface{}, bool, error) {
+func (pcd service) Read(uuid string, transId string) (interface{}, bool, error) {
 	results := []struct {
 		content
 	}{}
@@ -76,7 +76,7 @@ func (pcd service) Read(uuid string) (interface{}, bool, error) {
 }
 
 //Write - Writes a content node
-func (pcd service) Write(thing interface{}) error {
+func (pcd service) Write(thing interface{}, transId string) error {
 	c := thing.(content)
 
 	// Only Articles have a body
@@ -179,7 +179,7 @@ func addContentPackageRelationQuery(articleUuid, packageUuid string) *neoism.Cyp
 }
 
 //Delete - Deletes a content
-func (pcd service) Delete(uuid string) (bool, error) {
+func (pcd service) Delete(uuid string, transId string) (bool, error) {
 	clearNode := &neoism.CypherQuery{
 		Statement: `
 			MATCH (p:Thing {uuid: {uuid}})
