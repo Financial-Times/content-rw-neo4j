@@ -364,9 +364,9 @@ func testContentWillBeWritten(t *testing.T, c content) {
 	contentDriver := getCypherDriver(db)
 	defer cleanDB(db, t, assert)
 
-	assert.NoError(contentDriver.Write(contentPlaceholder, "TEST_TRANS_ID"), "Failed to write content")
+	assert.NoError(contentDriver.Write(c, "TEST_TRANS_ID"), "Failed to write content")
 
-	storedContent, _, err := contentDriver.Read(contentPlaceholder.UUID, "TEST_TRANS_ID")
+	storedContent, _, err := contentDriver.Read(c.UUID, "TEST_TRANS_ID")
 	assert.NoError(err)
 	assert.NotEmpty(storedContent, "Failed to retireve stored content")
 	actualContent := storedContent.(content)
