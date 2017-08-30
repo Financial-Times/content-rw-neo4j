@@ -2,8 +2,8 @@ version: 2
 jobs:
   build:
     docker:
-      - image: circleci/golang:1.7
-      - image: neo4j:3.1.0-enterprise
+      - image: circleci/golang:1.8
+      - image: neo4j:3.2.2-enterprise
         environment:
           NEO4J_AUTH: none
           NEO4J_HEAP_MEMORY: 256
@@ -20,9 +20,9 @@ jobs:
       - run: |
           go get -u github.com/kardianos/govendor
       - run: |
-          go get -t -d -v ./...
+          govendor sync
       - run: |
-          go build -v
+          govendor build -v
       - run: |
           wget --retry-connrefused --no-check-certificate -T 60 $NEO4J_TEST_URL; curl $NEO4J_TEST_URL
       - run: |
@@ -43,3 +43,22 @@ jobs:
       - store_artifacts:
           path: /tmp/artifacts
           destination: build
+  docker_build:
+    working_directory: /content-rw-neo4j
+    docker:
+      - image: docker:1.12.6-git
+    steps:
+      - checkout
+      - setup_docker_engine
+      - run:
+          name: Build Dockerfile
+          command: docker build .
+
+workflows:
+  version: 2
+  tests_and_docker:
+    jobs:
+      - build
+      - docker_build:
+          requires:
+            - build
