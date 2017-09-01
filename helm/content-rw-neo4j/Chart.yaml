@@ -1,0 +1,4 @@
+apiVersion: v1
+description: content-rw-neo4j Helm chart for Kubernetes
+name: content-rw-neo4j
+version: 0.0.0
