@@ -32,7 +32,7 @@ func (cd service) Check() error {
 }
 
 // Read - reads a content given a UUID
-func (cd service) Read(UUID string) (interface{}, bool, error) {
+func (cd service) Read(uuid string, transId string) (interface{}, bool, error) {
 	results := []struct {
 		content
 	}{}
@@ -48,7 +48,7 @@ func (cd service) Read(UUID string) (interface{}, bool, error) {
 				sp.uuid as storyPackage,
 				cp.uuid as contentPackage`,
 		Parameters: map[string]interface{}{
-			"uuid": UUID,
+			"uuid": uuid,
 		},
 		Result: &results,
 	}
@@ -76,7 +76,7 @@ func (cd service) Read(UUID string) (interface{}, bool, error) {
 }
 
 //Write - Writes a content node
-func (cd service) Write(thing interface{}) error {
+func (cd service) Write(thing interface{}, transId string) error {
 	c := thing.(content)
 
 	// Letting through only articles (which have body), content packages and videos
@@ -179,7 +179,7 @@ func addContentPackageRelationQuery(articleUUID, packageUUID string) *neoism.Cyp
 }
 
 //Delete - Deletes a content
-func (cd service) Delete(uuid string) (bool, error) {
+func (cd service) Delete(uuid string, transId string) (bool, error) {
 	clearNode := &neoism.CypherQuery{
 		Statement: `
 			MATCH (p:Thing {uuid: {uuid}})

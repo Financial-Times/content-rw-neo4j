@@ -1,33 +1,32 @@
-FROM alpine:3.4
 
-ARG PROJECT=content-rw-neo4j
+FROM golang:1.8-alpine
 
-ADD . /${PROJECT}/
+ENV PROJECT=content-rw-neo4j
+COPY . /${PROJECT}-sources/
 
-RUN apk --no-cache --upgrade add bash ca-certificates \
-  && apk --no-cache --virtual .build-dependencies add git go \
-  && cd ${PROJECT} \
-  && git fetch origin 'refs/tags/*:refs/tags/*' \
-  && BUILDINFO_PACKAGE="github.com/Financial-Times/service-status-go/buildinfo." \
+RUN apk --no-cache --virtual .build-dependencies add git \
+  && ORG_PATH="github.com/Financial-Times" \
+  && REPO_PATH="${ORG_PATH}/${PROJECT}" \
+  && mkdir -p $GOPATH/src/${ORG_PATH} \
+  # Linking the project sources in the GOPATH folder
+  && ln -s /${PROJECT}-sources $GOPATH/src/${REPO_PATH} \
+  && cd $GOPATH/src/${REPO_PATH} \
+  && BUILDINFO_PACKAGE="${ORG_PATH}/${PROJECT}/vendor/${ORG_PATH}/service-status-go/buildinfo." \
   && VERSION="version=$(git describe --tag --always 2> /dev/null)" \
   && DATETIME="dateTime=$(date -u +%Y%m%d%H%M%S)" \
   && REPOSITORY="repository=$(git config --get remote.origin.url)" \
   && REVISION="revision=$(git rev-parse HEAD)" \
   && BUILDER="builder=$(go version)" \
   && LDFLAGS="-X '"${BUILDINFO_PACKAGE}$VERSION"' -X '"${BUILDINFO_PACKAGE}$DATETIME"' -X '"${BUILDINFO_PACKAGE}$REPOSITORY"' -X '"${BUILDINFO_PACKAGE}$REVISION"' -X '"${BUILDINFO_PACKAGE}$BUILDER"'" \
-  && cd .. \
-  && export GOPATH=/gopath \
-  && REPO_ROOT="github.com/Financial-Times/" \
-  && REPO_PATH="$REPO_ROOT/${PROJECT}" \
-  && mkdir -p $GOPATH/src/${REPO_ROOT} \
-  && mv ${PROJECT} $GOPATH/src/${REPO_ROOT} \
-  && cd $GOPATH/src/${REPO_PATH} \
-  && go get ./... \
-  && cd $GOPATH/src/${REPO_PATH} \
-  && echo ${LDFLAGS} \
+  && echo "Build flags: $LDFLAGS" \
+  && echo "Fetching dependencies..." \
+  && go get -u github.com/kardianos/govendor \
+  && $GOPATH/bin/govendor sync \
   && go build -ldflags="${LDFLAGS}" \
-  && mv ${PROJECT} / \
+  && mv ${PROJECT} /${PROJECT} \
   && apk del .build-dependencies \
   && rm -rf $GOPATH /var/cache/apk/*
+
+WORKDIR /
 
 CMD [ "/content-rw-neo4j" ]
