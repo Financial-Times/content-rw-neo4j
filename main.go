@@ -9,7 +9,7 @@ import (
 	"github.com/Financial-Times/content-rw-neo4j/content"
 	"github.com/Financial-Times/go-fthealth/v1a"
 	"github.com/Financial-Times/neo-utils-go/neoutils"
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/jawher/mow.cli"
 )
 
