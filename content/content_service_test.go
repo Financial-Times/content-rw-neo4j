@@ -330,7 +330,9 @@ func TestContentWontBeWrittenIfNoBody(t *testing.T) {
 	contentDriver := getCypherDriver(db)
 	defer cleanDB(db, t, assert)
 
-	assert.NoError(contentDriver.Write(contentWithoutABody, "TEST_TRANS_ID"), "Failed to write content")
+	err := contentDriver.Write(contentWithoutABody, "TEST_TRANS_ID")
+	assert.NoError(err, "Failed to write content")
+
 	storedContent, _, err := contentDriver.Read(contentWithoutABody.UUID, "TEST_TRANS_ID")
 
 	assert.NoError(err)
