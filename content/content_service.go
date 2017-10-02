@@ -5,9 +5,15 @@ import (
 	"time"
 
 	"github.com/Financial-Times/neo-utils-go/neoutils"
-	log "github.com/sirupsen/logrus"
 	"github.com/jmcvetta/neoism"
+	log "github.com/sirupsen/logrus"
 )
+
+var contentTypesWithNoBody = map[string]bool{
+	"Content": true,
+	"Article": true,
+	"Video":   true,
+}
 
 // CypherDriver - CypherDriver
 type service struct {
@@ -79,8 +85,8 @@ func (cd service) Read(uuid string, transId string) (interface{}, bool, error) {
 func (cd service) Write(thing interface{}, transId string) error {
 	c := thing.(content)
 
-	// Letting through only articles (which have body), content packages and videos
-	if c.Body == "" && c.Type != "Content" && c.Type != "Video" {
+	// Letting through only articles (which have body), live blogs, content packages and videos (which don't have a body)
+	if c.Body == "" && !contentTypesWithNoBody[c.Type] {
 		log.Infof("There is no body with this content item therefore assuming is it not an Article: %v", c.UUID)
 		return nil
 	}

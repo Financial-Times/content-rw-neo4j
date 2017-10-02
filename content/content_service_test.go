@@ -15,6 +15,7 @@ import (
 const (
 	contentUUID                  = "ce3f2f5e-33d1-4c36-89e3-51aa00fd5660"
 	conceptUUID                  = "412e4ca3-f8d5-4456-8606-064c1dba3c45"
+	liveBlogUUID                 = "1520b6b9-d466-49a0-b3ec-894b72338e7d"
 	noBodyContentUUID            = "6440aa4a-1298-4a49-9346-78d546bc0229"
 	noBodyInvalidTypeContentUUID = "1674d8b6-f3b2-4f18-9f3b-e28bcf5553a0"
 	contentPlaceholderUUID       = "ed2d9fc2-b515-4f7d-8b4e-3b0c1fa90986"
@@ -32,6 +33,12 @@ var contentPlaceholder = content{
 	UUID:  contentPlaceholderUUID,
 	Title: "Missing Body",
 	Type:  "Content",
+}
+
+var liveBlog = content{
+	UUID:  liveBlogUUID,
+	Title: "Live blog",
+	Type:  "Article",
 }
 
 var contentWithoutABodyWithType = content{
@@ -330,7 +337,9 @@ func TestContentWontBeWrittenIfNoBody(t *testing.T) {
 	contentDriver := getCypherDriver(db)
 	defer cleanDB(db, t, assert)
 
-	assert.NoError(contentDriver.Write(contentWithoutABody, "TEST_TRANS_ID"), "Failed to write content")
+	err := contentDriver.Write(contentWithoutABody, "TEST_TRANS_ID")
+	assert.NoError(err, "Failed to write content")
+
 	storedContent, _, err := contentDriver.Read(contentWithoutABody.UUID, "TEST_TRANS_ID")
 
 	assert.NoError(err)
@@ -348,6 +357,10 @@ func TestContentWontBeWrittenIfNoBodyWithInvalidType(t *testing.T) {
 
 	assert.NoError(err)
 	assert.Equal(content{}, storedContent, "No content should be written when the content has no body")
+}
+
+func TestLiveBlogsWillBeWrittenDespiteNoBody(t *testing.T) {
+	testContentWillBeWritten(t, liveBlog)
 }
 
 func TestContentPlaceholderWillBeWritten(t *testing.T) {
