@@ -41,6 +41,16 @@ Currently we use a subset of the fields that we get from the Ingester but if mor
 
 The flow of information is as follows: Kafka (CMSPublication) => Ingester => content-rw-neo4j
 
+## Content Types
+
+Currently, the following content types are eligible for being written into Neo:
+
+* Article
+* Content
+* Video
+
+Additionally, any content payloads which contain a `body` property, will be written to Neo.
+
 ## API
 
 Write content to Neo4j:
