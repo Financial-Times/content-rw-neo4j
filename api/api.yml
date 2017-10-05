@@ -91,6 +91,9 @@ paths:
       responses:
         200:
           description: The content has been written to Neo4j successfully.
+          examples:
+            application/json:
+              message: PUT successful
         400:
           description: The UUID specified in the path is invalid, or the request body is not in a valid JSON format.
         409:

@@ -3,10 +3,12 @@
 	"ignore": "test",
 	"package": [
 		{
-			"checksumSHA1": "FfEWrE4sbtmtyeBTHCCF1q3QBxU=",
+			"checksumSHA1": "JaGW3QqTfF6jXugTnOqQS5YO0k8=",
 			"path": "github.com/Financial-Times/base-ft-rw-app-go/baseftrwapp",
-			"revision": "be466360f44ea91249e878204fc2f36f2fa9cf6c",
-			"revisionTime": "2017-08-30T11:11:50Z"
+			"revision": "fbafcb1f57bfdd83be013eab43c1cf005cc7f7a8",
+			"revisionTime": "2017-10-05T11:25:14Z",
+			"version": "1.0.3.api-endpoint.dp.rc1",
+			"versionExact": "1.0.3.api-endpoint.dp.rc1"
 		},
 		{
 			"checksumSHA1": "FUhczVSvt/VQAlWfzATo1YLez2E=",
@@ -171,6 +173,12 @@
 			"path": "gopkg.in/jmcvetta/napping.v3",
 			"revision": "d2748d8bdd2cffedec5c3024958de65bf7cb55aa",
 			"revisionTime": "2016-07-15T19:26:07Z"
+		},
+		{
+			"checksumSHA1": "RDJpJQwkF012L6m/2BJizyOksNw=",
+			"path": "gopkg.in/yaml.v2",
+			"revision": "eb3733d160e74a9c7e442f435eb3bea458e1d19f",
+			"revisionTime": "2017-08-12T16:00:11Z"
 		}
 	],
 	"rootPath": "github.com/Financial-Times/content-rw-neo4j"

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	_ "net/http/pprof"
 	"os"
 
@@ -9,8 +10,8 @@ import (
 	"github.com/Financial-Times/content-rw-neo4j/content"
 	"github.com/Financial-Times/go-fthealth/v1a"
 	"github.com/Financial-Times/neo-utils-go/neoutils"
-	log "github.com/sirupsen/logrus"
 	"github.com/jawher/mow.cli"
+	log "github.com/sirupsen/logrus"
 )
 
 func main() {
@@ -33,6 +34,12 @@ func main() {
 		Value:  "",
 		Desc:   "Prefix to use. Should start with content, include the environment, and the host name. e.g. coco.pre-prod.brands-rw-neo4j.1 or content.test.brands.rw.neo4j.ftaps58938-law1a-eu-t",
 		EnvVar: "GRAPHITE_PREFIX",
+	})
+	apiYml := app.String(cli.StringOpt{
+		Name:   "api-yml",
+		Value:  "./api.yml",
+		Desc:   "Location of the API Swagger YML file.",
+		EnvVar: "API_YML",
 	})
 	port := app.Int(cli.IntOpt{
 		Name:   "port",
@@ -75,6 +82,12 @@ func main() {
 			checks = append(checks, makeCheck(service, db))
 		}
 
+		ymlBytes, err := ioutil.ReadFile(*apiYml)
+		if err != nil {
+			log.WithField("api-yml", *apiYml).Warn("Failed to read OpenAPI yml file, please confirm the file exists and is not empty.")
+			ymlBytes = nil // the base-ft-rw-app-go lib will not add the /__api endpoint if OpenAPIData is nil
+		}
+
 		baseftrwapp.RunServerWithConf(baseftrwapp.RWConf{
 			Services:      services,
 			HealthHandler: v1a.Handler("ft-content_rw_neo4j ServiceModule", "Writes 'content' to Neo4j, usually as part of a bulk upload done on a schedule", checks...),
@@ -82,6 +95,7 @@ func main() {
 			ServiceName:   "content-rw-neo4j",
 			Env:           "local",
 			EnableReqLog:  true,
+			OpenAPIData:   ymlBytes,
 		})
 	}
 	log.SetLevel(log.InfoLevel)
