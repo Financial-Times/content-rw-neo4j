@@ -13,10 +13,10 @@
 		{
 			"checksumSHA1": "JaGW3QqTfF6jXugTnOqQS5YO0k8=",
 			"path": "github.com/Financial-Times/base-ft-rw-app-go/baseftrwapp",
-			"revision": "fbafcb1f57bfdd83be013eab43c1cf005cc7f7a8",
-			"revisionTime": "2017-10-05T11:25:14Z",
-			"version": "1.0.3.api-endpoint.dp.rc1",
-			"versionExact": "1.0.3.api-endpoint.dp.rc1"
+			"revision": "74eab27b0c6d6044fd326183ddd37ea8ac0e236e",
+			"revisionTime": "2017-10-10T16:23:15Z",
+			"version": "1.0.3",
+			"versionExact": "1.0.3"
 		},
 		{
 			"checksumSHA1": "FUhczVSvt/VQAlWfzATo1YLez2E=",
