@@ -1,0 +1,230 @@
+swagger: "2.0"
+
+info:
+  title: Content R/W Neo4j
+  description: Reads and Writes Content to/from Neo4j
+  version: 0.0.0
+  license:
+    name: MIT
+  contact:
+    name: Universal Publishing
+    email: universal.publishing@ft.com
+
+host: api.ft.com
+basePath: "/"
+schemes:
+  - http
+  - https
+
+paths:
+  /content/{uuid}:
+    put:
+      summary:  Write Content
+      description: Creates or updates content nodes in Neo4j
+      tags:
+        - Internal API
+      produces:
+        - application/json
+      consumes:
+        - application/json
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          description: An RFC4122 V4 UUID for a piece of content
+          type: string
+          x-example: 0620cfe1-e7ee-44d6-918e-e5ca278d2245
+        - name: content
+          in: body
+          required: true
+          description: A content-ingester style UPP content payload
+          schema:
+            type: object
+            properties:
+              uuid:
+                type: string
+                x-example: 0620cfe1-e7ee-44d6-918e-e5ca278d2245
+                description: An RFC4122 V4 UUID for a piece of content, should match the path uuid parameter.
+              title:
+                type: string
+                x-example: Profits plunge at Vatican bank
+              byline:
+                type: string
+                x-example: By Giulia Segreti in Rome
+              identifiers:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    authority:
+                      type: string
+                      description: FT identifier authority
+                      x-example: |
+                        http://api.ft.com/system/FTCOM-METHODE
+                    identifierValue:
+                      type: string
+                      x-example: 4f1e764a-0744-11e4-bc71-002128161462
+              publishedDate:
+                type: string
+                format: dateTime
+                x-example: 2014-07-08T13:52:52.000Z
+              body:
+                type: string
+                x-example: |
+                  <body></body>
+                description: The body of the article in FT xml format
+              storyPackage:
+                type: string
+                x-example: 14a68464-c398-4fd4-bcc1-c06b30bf8d45
+              contentPackage:
+                type: string
+                x-example: 45163790-eec9-11e6-abbc-ee7d9c5b3b90
+            required:
+              - uuid
+            example:
+              uuid: 0620cfe1-e7ee-44d6-918e-e5ca278d2245
+              title: Profits plunge at Vatican bank
+              publishedDate: 2014-07-08T13:52:52.000Z
+              body: |
+                <body></body>
+              storyPackage: 14a68464-c398-4fd4-bcc1-c06b30bf8d45
+      responses:
+        200:
+          description: The content has been written to Neo4j successfully.
+          examples:
+            application/json:
+              message: PUT successful
+        400:
+          description: The UUID specified in the path is invalid, or the request body is not in a valid JSON format.
+        409:
+          description: There has been a constraint violation or transaction error in Neo4j.
+        503:
+          description: A failure occurred while writing the content to Neo4j. Please check the `/__health` endpoint and try again.
+    get:
+      summary:  Read Content
+      description: Reads content data from Neo4j
+      tags:
+        - Internal API
+      produces:
+        - application/json
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          description: An RFC4122 V4 UUID for a piece of content
+          type: string
+          x-example: 0620cfe1-e7ee-44d6-918e-e5ca278d2245
+      responses:
+        200:
+          description: Returns the content for the provided uuid.
+          examples:
+            application/json:
+              uuid: 0620cfe1-e7ee-44d6-918e-e5ca278d2245
+              publishedDate: 2014-07-08T13:52:52.000Z
+              title: Profits plunge at Vatican bank
+              storyPackage: 14a68464-c398-4fd4-bcc1-c06b30bf8d45
+        404:
+          description: Content not found
+        503:
+          description: An unexpected error occurred while contacting Neo4j, or failed to encode Neo4j data as JSON.
+    delete:
+      summary:  Delete Content
+      description: Deletes content data from Neo4j for the provided UUID
+      tags:
+        - Internal API
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          description: An RFC4122 V4 UUID for a piece of content
+          type: string
+          x-example: 0620cfe1-e7ee-44d6-918e-e5ca278d2245
+      responses:
+        204:
+          description: Content has been deleted successfully.
+        404:
+          description: Content not found
+        500:
+          description: Failed to encode Neo4j data as JSON.
+        503:
+          description: An unexpected error occurred while contacting Neo4j.
+  /content/__count:
+    get:
+      summary: Count Content
+      description: Counts the Content nodes in Neo4j and returns the result
+      produces:
+        - application/json
+      tags:
+        - Internal API
+      responses:
+        200:
+          description: Returns the number of content nodes in Neo4j.
+          examples:
+            application/json:
+              0
+  /__health:
+    get:
+      summary: Healthchecks
+      description: Runs application healthchecks and returns FT Healthcheck style json.
+      produces:
+        - application/json
+      tags:
+        - Health
+      responses:
+        200:
+          description: >
+            Should always return 200 along with the output of the healthchecks - regardless
+            of whether the healthchecks failed or not.
+            Please inspect the overall ok property to see whether or not the application is healthy.
+          examples:
+            application/json:
+              schemaVersion: 1
+              name: app-name
+              description: A descriptive description
+              checks:
+                - name: Check API Health
+                  ok: false
+                  severity: 1
+                  businessImpact: A business impact this failure might have
+                  technicalSummary: A technical description of what's gone wrong
+                  panicGuide: https://dewey.ft.com/dewey-system-code.html
+                  checkOutput: Technical output from the check
+                  lastUpdated: 2017-08-03T10:44:32.324709638+01:00
+              ok: true
+  /__build-info:
+    get:
+      summary: Build Information
+      description: >
+        Returns application build info, such as the git repository and revision,
+        the golang version it was built with, and the app release version.
+      produces:
+        - application/json; charset=UTF-8
+      tags:
+        - Info
+      responses:
+        200:
+          description: Outputs build information as described in the summary.
+          examples:
+            application/json; charset=UTF-8:
+              version: 0.0.1
+              repository: https://github.com/Financial-Times/app-name.git
+              revision: 7cdbdb18b4a518eef3ebb1b545fc124612f9d7cd
+              builder: go version go1.6.3 linux/amd64
+              dateTime: "20161123122615"
+  /__gtg:
+    get:
+      summary: Good To Go
+      description: Lightly healthchecks the application, and returns a 200 if it's Good-To-Go.
+      tags:
+        - Health
+      produces:
+          - text/plain; charset=US-ASCII
+      responses:
+        200:
+          description: The application is healthy enough to perform all its functions correctly - i.e. good to go.
+          examples:
+               text/plain; charset=US-ASCII: OK
+        503:
+          description: >
+            One or more of the applications healthchecks have failed,
+            so please do not use the app. See the /__health endpoint for more detailed information.
