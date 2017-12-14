@@ -6,9 +6,11 @@ import (
 	_ "net/http/pprof"
 	"os"
 
+	"time"
+
 	"github.com/Financial-Times/base-ft-rw-app-go/baseftrwapp"
 	"github.com/Financial-Times/content-rw-neo4j/content"
-	"github.com/Financial-Times/go-fthealth/v1a"
+	fthealth "github.com/Financial-Times/go-fthealth/v1_1"
 	"github.com/Financial-Times/neo-utils-go/neoutils"
 	"github.com/jawher/mow.cli"
 	log "github.com/sirupsen/logrus"
@@ -77,7 +79,7 @@ func main() {
 			"content": contentDriver,
 		}
 
-		var checks []v1a.Check
+		var checks []fthealth.Check
 		for _, service := range services {
 			checks = append(checks, makeCheck(service, db))
 		}
@@ -88,9 +90,14 @@ func main() {
 			ymlBytes = nil // the base-ft-rw-app-go lib will not add the /__api endpoint if OpenAPIData is nil
 		}
 
+		hc := fthealth.TimedHealthCheck{
+			HealthCheck: fthealth.HealthCheck{SystemCode: "upp-content-rw-neo4j", Name: "ft-content_rw_neo4j ServiceModule", Description: "Writes 'content' to Neo4j, usually as part of a bulk upload done on a schedule", Checks: checks},
+			Timeout:     10 * time.Second,
+		}
+
 		baseftrwapp.RunServerWithConf(baseftrwapp.RWConf{
 			Services:      services,
-			HealthHandler: v1a.Handler("ft-content_rw_neo4j ServiceModule", "Writes 'content' to Neo4j, usually as part of a bulk upload done on a schedule", checks...),
+			HealthHandler: fthealth.Handler(hc),
 			Port:          *port,
 			ServiceName:   "content-rw-neo4j",
 			Env:           "local",
@@ -103,8 +110,8 @@ func main() {
 	app.Run(os.Args)
 }
 
-func makeCheck(service baseftrwapp.Service, cr neoutils.CypherRunner) v1a.Check {
-	return v1a.Check{
+func makeCheck(service baseftrwapp.Service, cr neoutils.CypherRunner) fthealth.Check {
+	return fthealth.Check{
 		BusinessImpact:   "Cannot read/write content via this writer",
 		Name:             "Check connectivity to Neo4j",
 		PanicGuide:       "https://dewey.ft.com/upp-content-rw-neo4j.html",
