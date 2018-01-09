@@ -91,8 +91,13 @@ func main() {
 		}
 
 		hc := fthealth.TimedHealthCheck{
-			HealthCheck: fthealth.HealthCheck{SystemCode: "upp-content-rw-neo4j", Name: "ft-content_rw_neo4j ServiceModule", Description: "Writes 'content' to Neo4j, usually as part of a bulk upload done on a schedule", Checks: checks},
-			Timeout:     10 * time.Second,
+			HealthCheck: fthealth.HealthCheck{
+				SystemCode:  "upp-content-rw-neo4j",
+				Name:        "ft-content_rw_neo4j ServiceModule",
+				Description: "Writes 'content' to Neo4j, usually as part of a bulk upload done on a schedule",
+				Checks:      checks,
+			},
+			Timeout: 10 * time.Second,
 		}
 
 		baseftrwapp.RunServerWithConf(baseftrwapp.RWConf{
