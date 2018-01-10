@@ -9,7 +9,7 @@ image:
   repository: coco/content-rw-neo4j
   pullPolicy: IfNotPresent
 resources:
+  requests:
+    memory: 40Mi
   limits:
     memory: 256Mi
-
-

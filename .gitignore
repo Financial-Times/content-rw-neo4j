@@ -1,4 +1,4 @@
 *.log
 .idea
 vendor/*/
-/content-rw-neo4j
+/content-rw-neo4j*

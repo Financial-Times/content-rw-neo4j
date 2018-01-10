@@ -20,6 +20,16 @@ spec:
         app: {{ .Values.service.name }}
         visualize: "true" 
     spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - {{ .Values.service.name }}
+            topologyKey: "kubernetes.io/hostname"
       containers: 
       - name: {{ .Values.service.name }} 
         image: "{{ .Values.image.repository }}:{{ .Chart.Version }}"
@@ -50,10 +60,11 @@ spec:
           initialDelaySeconds: 10 
         readinessProbe: 
           httpGet: 
-            path: "/__gtg" 
-            port: 8080 
-          initialDelaySeconds: 15 
-          periodSeconds: 30 
+            path: "/__gtg"
+            port: 8080
+          initialDelaySeconds: 15
+          periodSeconds: 30
+          timeoutSeconds: 4
         resources: 
 {{ toYaml .Values.resources | indent 12 }}
 
