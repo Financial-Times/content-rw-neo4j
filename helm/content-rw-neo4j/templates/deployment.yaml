@@ -60,10 +60,11 @@ spec:
           initialDelaySeconds: 10 
         readinessProbe: 
           httpGet: 
-            path: "/__gtg" 
-            port: 8080 
-          initialDelaySeconds: 15 
-          periodSeconds: 30 
+            path: "/__gtg"
+            port: 8080
+          initialDelaySeconds: 15
+          periodSeconds: 30
+          timeoutSeconds: 5
         resources: 
 {{ toYaml .Values.resources | indent 12 }}
 
