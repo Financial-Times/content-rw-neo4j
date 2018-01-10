@@ -64,7 +64,7 @@ spec:
             port: 8080
           initialDelaySeconds: 15
           periodSeconds: 30
-          timeoutSeconds: 5
+          timeoutSeconds: 4
         resources: 
 {{ toYaml .Values.resources | indent 12 }}
 
