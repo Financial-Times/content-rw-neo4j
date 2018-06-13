@@ -13,6 +13,7 @@ var contentTypesWithNoBody = map[string]bool{
 	"Content": true,
 	"Article": true,
 	"Video":   true,
+	"Graphic": true,
 }
 
 // CypherDriver - CypherDriver
@@ -85,7 +86,7 @@ func (cd service) Read(uuid string, transId string) (interface{}, bool, error) {
 func (cd service) Write(thing interface{}, transId string) error {
 	c := thing.(content)
 
-	// Letting through only articles (which have body), live blogs, content packages and videos (which don't have a body)
+	// Letting through only articles (which have body), live blogs, content packages, graphics and videos (which don't have a body)
 	if c.Body == "" && !contentTypesWithNoBody[c.Type] {
 		log.Infof("There is no body with this content item therefore assuming is it not an Article: %v", c.UUID)
 		return nil
