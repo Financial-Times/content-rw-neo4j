@@ -22,6 +22,7 @@ const (
 	videoContentUUID             = "41bb9444-e3cf-46d4-8182-6702844dc5c1"
 	storyPackageUUID             = "3b08c76c-7479-461d-9f0e-a4e92dca56f7"
 	contentPackageUUID           = "45163790-eec9-11e6-abbc-ee7d9c5b3b90"
+	graphicUUID                  = "087b42c2-ac7f-40b9-b112-98b3a7f9cd72"
 )
 
 var contentWithoutABody = content{
@@ -51,6 +52,12 @@ var videoContent = content{
 	UUID:  videoContentUUID,
 	Title: "Missing Body",
 	Type:  "Video",
+}
+
+var graphicContent = content{
+	UUID:  graphicUUID,
+	Title: "Missing Body",
+	Type:  "Graphic",
 }
 
 var standardContent = content{
@@ -369,6 +376,10 @@ func TestContentPlaceholderWillBeWritten(t *testing.T) {
 
 func TestVideoContentWillBeWritten(t *testing.T) {
 	testContentWillBeWritten(t, videoContent)
+}
+
+func TestGraphicWillBeWritten(t *testing.T) {
+	testContentWillBeWritten(t, graphicContent)
 }
 
 func testContentWillBeWritten(t *testing.T, c content) {
