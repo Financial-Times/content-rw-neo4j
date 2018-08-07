@@ -34,16 +34,22 @@ func (cd service) Initialise() error {
 		"Content": "uuid"})
 }
 
-// Check - Feeds into the Healthcheck and checks whether we can connect to Neo and that the datastore isn't empty
+// Check - Feeds into the Healthcheck and checks whether we can connect to Neo and that the datastore isn't empty and
+// also checks if we are connected to leader/writable node
 func (cd service) Check() error {
+	writableErr := neoutils.CheckWritable(cd.conn)
+	if writableErr != nil {
+		return writableErr
+	}
+
 	return neoutils.Check(cd.conn)
 }
 
 // Read - reads a content given a UUID
 func (cd service) Read(uuid string, transId string) (interface{}, bool, error) {
-	results := []struct {
+	var results []struct {
 		content
-	}{}
+	}
 
 	query := &neoism.CypherQuery{
 		Statement: `MATCH (n:Content {uuid:{uuid}})
@@ -249,9 +255,9 @@ func (cd service) DecodeJSON(dec *json.Decoder) (interface{}, string, error) {
 // Count - Returns a count of the number of content in this Neo instance
 func (cd service) Count() (int, error) {
 
-	results := []struct {
+	var results []struct {
 		Count int `json:"c"`
-	}{}
+	}
 
 	query := &neoism.CypherQuery{
 		Statement: `MATCH (n:Content) return count(n) as c`,
