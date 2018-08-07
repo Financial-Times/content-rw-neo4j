@@ -3,11 +3,11 @@ jobs:
   build:
     docker:
     - image: circleci/golang:1.10.2
-    - image: neo4j:3.2.2-enterprise
-      environment:
-        NEO4J_AUTH: none
-        NEO4J_HEAP_MEMORY: 256
-        NEO4J_CACHE_MEMORY: 256M
+#    - image: neo4j:3.2.2-enterprise
+#      environment:
+#        NEO4J_AUTH: none
+#        NEO4J_HEAP_MEMORY: 256
+#        NEO4J_CACHE_MEMORY: 256M
 
     working_directory: /go/src/github.com/Financial-Times/content-rw-neo4j
     environment:
@@ -18,6 +18,12 @@ jobs:
 
     steps:
     - checkout
+    - setup_remote_docker
+    - run:
+        command: |
+          set -x
+          cd _test
+          docker-compose up -d
     - run:
         name: External dependencies
         command: |
