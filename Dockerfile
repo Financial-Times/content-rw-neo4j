@@ -4,7 +4,7 @@ FROM golang:1.8-alpine
 ENV PROJECT=content-rw-neo4j
 COPY . /${PROJECT}-sources/
 
-RUN apk --no-cache --virtual .build-dependencies add git \
+RUN apk --no-cache --virtual .build-dependencies add git curl \
   && ORG_PATH="github.com/Financial-Times" \
   && REPO_PATH="${ORG_PATH}/${PROJECT}" \
   && mkdir -p $GOPATH/src/${ORG_PATH} \
@@ -20,8 +20,8 @@ RUN apk --no-cache --virtual .build-dependencies add git \
   && LDFLAGS="-X '"${BUILDINFO_PACKAGE}$VERSION"' -X '"${BUILDINFO_PACKAGE}$DATETIME"' -X '"${BUILDINFO_PACKAGE}$REPOSITORY"' -X '"${BUILDINFO_PACKAGE}$REVISION"' -X '"${BUILDINFO_PACKAGE}$BUILDER"'" \
   && echo "Build flags: $LDFLAGS" \
   && echo "Fetching dependencies..." \
-  && go get -u github.com/kardianos/govendor \
-  && $GOPATH/bin/govendor sync \
+  && curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh \
+  && $GOPATH/bin/dep ensure -vendor-only \
   && go build -ldflags="${LDFLAGS}" \
   && mv ${PROJECT} /${PROJECT} \
   && mv ./api/api.yml /api.yml \

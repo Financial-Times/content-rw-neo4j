@@ -1,6 +1,6 @@
 dry-run: null
-hookfiles: null
-language: go
+hookfiles: '_ft/dredd-hooks.js'
+language: nodejs
 sandbox: false
 server: ./content-rw-neo4j
 server-wait: 3
