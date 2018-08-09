@@ -160,7 +160,7 @@ paths:
         200:
           description: Returns the number of content nodes in Neo4j.
           examples:
-            application/json:
+            application/json: 0
   /__health:
     get:
       summary: Healthchecks
