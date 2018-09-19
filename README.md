@@ -16,9 +16,6 @@ $GOPATH/bin/content-rw-neo4j \
    --neo-url={neo4jUrl} \
    --port={port} \
    --batchSize=50 \
-   --graphiteTCPAddress=graphite.ft.com:2003 \
-   --graphitePrefix=content.{env}.content.rw.neo4j.{hostname} \
-   --logMetrics=false
 ```
 
 All arguments are optional, please run the following command to see the defaults:
