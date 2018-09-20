@@ -13,7 +13,7 @@ import (
 	fthealth "github.com/Financial-Times/go-fthealth/v1_1"
 	"github.com/Financial-Times/neo-utils-go/neoutils"
 	"github.com/jawher/mow.cli"
-	log "github.com/sirupsen/logrus"
+	"github.com/Financial-Times/go-logger"
 )
 
 func main() {
@@ -44,12 +44,29 @@ func main() {
 		EnvVar: "BATCH_SIZE",
 	})
 
+	logLevel := app.String(cli.StringOpt{
+		Name:   "logLevel",
+		Value:  "INFO",
+		Desc:   "Logging level (DEBUG, INFO, WARN, ERROR)",
+		EnvVar: "LOG_LEVEL",
+	})
+
+	appName := app.String(cli.StringOpt{
+		Name:   "app-name",
+		Value:  "content-rw-neo4j",
+		Desc:   "Application name",
+		EnvVar: "APP_NAME",
+	})
+
 	app.Action = func() {
+		logger.InitLogger(*appName, *logLevel)
+		logger.Infof("Application started with args %s", os.Args)
+
 		conf := neoutils.DefaultConnectionConfig()
 		conf.BatchSize = *batchSize
 		db, err := neoutils.Connect(*neoURL, conf)
 		if err != nil {
-			log.Errorf("Could not connect to neo4j, error=[%s]\n", err)
+			logger.Errorf("Could not connect to neo4j, error=[%s]\n", err)
 		}
 
 		contentDriver := content.NewCypherContentService(db)
@@ -66,7 +83,7 @@ func main() {
 
 		ymlBytes, err := ioutil.ReadFile(*apiYml)
 		if err != nil {
-			log.WithField("api-yml", *apiYml).Warn("Failed to read OpenAPI yml file, please confirm the file exists and is not empty.")
+			logger.WithField("api-yml", *apiYml).Warn("Failed to read OpenAPI yml file, please confirm the file exists and is not empty.")
 			ymlBytes = nil // the base-ft-rw-app-go lib will not add the /__api endpoint if OpenAPIData is nil
 		}
 
@@ -90,9 +107,10 @@ func main() {
 			OpenAPIData:   ymlBytes,
 		})
 	}
-	log.SetLevel(log.InfoLevel)
-	log.Infof("Application started with args %s", os.Args)
-	app.Run(os.Args)
+	err :=app.Run(os.Args)
+	if err != nil {
+		logger.Errorf("Application could not start, error=[%s]\n", err)
+	}
 }
 
 func makeCheck(service baseftrwapp.Service, cr neoutils.CypherRunner) fthealth.Check {

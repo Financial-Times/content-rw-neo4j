@@ -26,6 +26,14 @@
   version = "0.4.0"
 
 [[projects]]
+  digest = "1:ed7764f833c69827c95ecc7df89e6dd562b2663941f952f82c43dbac3d35c29e"
+  name = "github.com/Financial-Times/go-logger"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "febee6537e90971bab6f6fe60b71b4a0562dcab3"
+  version = "1.0.0"
+
+[[projects]]
   digest = "1:92da547d0414ad8a3f1a405503ee9b103cb87f5beabc52ef907f712f2ee1caf2"
   name = "github.com/Financial-Times/http-handlers-go"
   packages = ["httphandlers"]
@@ -224,6 +232,7 @@
   input-imports = [
     "github.com/Financial-Times/base-ft-rw-app-go/baseftrwapp",
     "github.com/Financial-Times/go-fthealth/v1_1",
+    "github.com/Financial-Times/go-logger",
     "github.com/Financial-Times/neo-utils-go/neoutils",
     "github.com/Financial-Times/transactionid-utils-go",
     "github.com/jawher/mow.cli",

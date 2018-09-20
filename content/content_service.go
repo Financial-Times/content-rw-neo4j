@@ -5,9 +5,8 @@ import (
 	"time"
 
 	"github.com/Financial-Times/neo-utils-go/neoutils"
-	tid "github.com/Financial-Times/transactionid-utils-go"
 	"github.com/jmcvetta/neoism"
-	log "github.com/sirupsen/logrus"
+	"github.com/Financial-Times/go-logger"
 )
 
 var contentTypesWithNoBody = map[string]bool{
@@ -95,7 +94,7 @@ func (cd service) Write(thing interface{}, transId string) error {
 
 	// Letting through only articles (which have body), live blogs, content packages, graphics and videos (which don't have a body)
 	if c.Body == "" && !contentTypesWithNoBody[c.Type] {
-		log.WithField(tid.TransactionIDKey, transId).
+		logger.WithMonitoringEvent("SaveNeo4j", transId, c.Type).
 			Infof("There is no body with this content item therefore assuming is it not an Article: %v", c.UUID)
 		return nil
 	}
@@ -135,14 +134,14 @@ func (cd service) Write(thing interface{}, transId string) error {
 	labels := `:Content`
 
 	if c.StoryPackage != "" {
-		log.WithField(tid.TransactionIDKey, transId).
+		logger.WithMonitoringEvent("SaveNeo4j", transId, c.Type).
 			Infof("There is a story package with uuid=%v attached to Article with uuid=%v", c.StoryPackage, c.UUID)
 		addStoryPackageRelationQuery := addStoryPackageRelationQuery(c.UUID, c.StoryPackage)
 		queries = append(queries, addStoryPackageRelationQuery)
 	}
 
 	if c.ContentPackage != "" {
-		log.WithField(tid.TransactionIDKey, transId).
+		logger.WithMonitoringEvent("SaveNeo4j", transId, c.Type).
 			Infof("There is a content package with uuid=%v attached to Article with uuid=%v", c.ContentPackage, c.UUID)
 		addContentPackageRelationQuery := addContentPackageRelationQuery(c.UUID, c.ContentPackage)
 		queries = append(queries, addContentPackageRelationQuery)
