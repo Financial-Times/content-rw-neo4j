@@ -237,7 +237,6 @@
     "github.com/Financial-Times/transactionid-utils-go",
     "github.com/jawher/mow.cli",
     "github.com/jmcvetta/neoism",
-    "github.com/sirupsen/logrus",
     "github.com/stretchr/testify/assert",
   ]
   solver-name = "gps-cdcl"

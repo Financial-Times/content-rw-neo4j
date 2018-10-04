@@ -38,12 +38,12 @@
   version = "1.0.4"
 
 [[constraint]]
-  name = "github.com/Financial-Times/transactionid-utils-go"
-  version = "0.1.0"
-
-[[constraint]]
   name = "github.com/Financial-Times/go-logger"
   version = "1.0.0"
+
+ [[constraint]]
+  name = "github.com/Financial-Times/transactionid-utils-go"
+  version = "0.1.0"
 
 [prune]
   go-tests = true

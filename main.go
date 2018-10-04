@@ -16,9 +16,14 @@ import (
 	"github.com/Financial-Times/go-logger"
 )
 
+const(
+	appName = "content-rw-neo4j"
+	appDescription = "A RESTful API for managing Content (bare bones representation as full content is served from MongoDB) in neo4j"
+)
+
 func main() {
 
-	app := cli.App("content-rw-neo4j", "A RESTful API for managing Content (bare bones representation as full content is served from MongoDB) in neo4j")
+	app := cli.App(appName, appDescription)
 	neoURL := app.String(cli.StringOpt{
 		Name:   "neo-url",
 		Value:  "http://localhost:7474/db/data",
@@ -51,15 +56,9 @@ func main() {
 		EnvVar: "LOG_LEVEL",
 	})
 
-	appName := app.String(cli.StringOpt{
-		Name:   "app-name",
-		Value:  "content-rw-neo4j",
-		Desc:   "Application name",
-		EnvVar: "APP_NAME",
-	})
+	logger.InitLogger(appName, *logLevel)
 
 	app.Action = func() {
-		logger.InitLogger(*appName, *logLevel)
 		logger.Infof("Application started with args %s", os.Args)
 
 		conf := neoutils.DefaultConnectionConfig()
