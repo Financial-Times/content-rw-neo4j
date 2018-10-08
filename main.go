@@ -11,13 +11,13 @@ import (
 	"github.com/Financial-Times/base-ft-rw-app-go/baseftrwapp"
 	"github.com/Financial-Times/content-rw-neo4j/content"
 	fthealth "github.com/Financial-Times/go-fthealth/v1_1"
+	"github.com/Financial-Times/go-logger"
 	"github.com/Financial-Times/neo-utils-go/neoutils"
 	"github.com/jawher/mow.cli"
-	"github.com/Financial-Times/go-logger"
 )
 
-const(
-	appName = "content-rw-neo4j"
+const (
+	appName        = "content-rw-neo4j"
 	appDescription = "A RESTful API for managing Content (bare bones representation as full content is served from MongoDB) in neo4j"
 )
 
@@ -106,7 +106,7 @@ func main() {
 			OpenAPIData:   ymlBytes,
 		})
 	}
-	err :=app.Run(os.Args)
+	err := app.Run(os.Args)
 	if err != nil {
 		logger.Errorf("Application could not start, error=[%s]\n", err)
 	}
