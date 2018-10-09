@@ -46,6 +46,7 @@ Currently, the following content types are eligible for being written into Neo:
 * Content
 * Video
 * Graphic
+* Audio
 
 Additionally, any content payloads which contain a `body` property, will be written to Neo.
 
