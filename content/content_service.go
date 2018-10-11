@@ -15,6 +15,7 @@ var contentTypesWithNoBody = map[string]bool{
 	"Article": true,
 	"Video":   true,
 	"Graphic": true,
+	"Audio":   true,
 }
 
 // CypherDriver - CypherDriver
@@ -93,7 +94,7 @@ func (cd service) Read(uuid string, transId string) (interface{}, bool, error) {
 func (cd service) Write(thing interface{}, transId string) error {
 	c := thing.(content)
 
-	// Letting through only articles (which have body), live blogs, content packages, graphics and videos (which don't have a body)
+	// Letting through only articles (which have body), live blogs, content packages, graphics, videos and audios (which don't have a body)
 	if c.Body == "" && !contentTypesWithNoBody[c.Type] {
 		logger.WithField(tid.TransactionIDKey, transId).
 			Infof("There is no body with this content item therefore assuming is it not an Article: %v", c.UUID)

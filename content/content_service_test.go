@@ -23,6 +23,7 @@ const (
 	storyPackageUUID             = "3b08c76c-7479-461d-9f0e-a4e92dca56f7"
 	contentPackageUUID           = "45163790-eec9-11e6-abbc-ee7d9c5b3b90"
 	graphicUUID                  = "087b42c2-ac7f-40b9-b112-98b3a7f9cd72"
+	audioContentUUID             = "128cfcf4-c394-4e71-8c65-198a675acf53"
 )
 
 var contentWithoutABody = content{
@@ -58,6 +59,12 @@ var graphicContent = content{
 	UUID:  graphicUUID,
 	Title: "Missing Body",
 	Type:  "Graphic",
+}
+
+var audioContent = content{
+	UUID:  audioContentUUID,
+	Title: "Missing Body",
+	Type:  "Audio",
 }
 
 var standardContent = content{
@@ -382,6 +389,10 @@ func TestGraphicWillBeWritten(t *testing.T) {
 	testContentWillBeWritten(t, graphicContent)
 }
 
+func TestAudioWillBeWritten(t *testing.T) {
+	testContentWillBeWritten(t, audioContent)
+}
+
 func testContentWillBeWritten(t *testing.T, c content) {
 	assert := assert.New(t)
 	db := getDatabaseConnectionAndCheckClean(t, assert)
@@ -438,6 +449,9 @@ func cleanDB(db neoutils.CypherRunner, t *testing.T, assert *assert.Assertions) 
 		},
 		{
 			Statement: fmt.Sprintf("MATCH (fc:Thing {uuid: '%v'}) DETACH DELETE fc", contentPlaceholderUUID),
+		},
+		{
+			Statement: fmt.Sprintf("MATCH (fc:Thing {uuid: '%v'}) DETACH DELETE fc", audioContentUUID),
 		},
 	}
 
