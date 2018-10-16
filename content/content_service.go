@@ -165,12 +165,13 @@ func (cd service) Write(thing interface{}, transId string) error {
 	queries = append(queries, writeContentQuery)
 	err := cd.conn.CypherBatch(queries)
 	if err != nil {
-		logger.WithMonitoringEvent("SaveNeo4j", transId, c.Type).WithError(err).Errorf("Error: the query could not be executed ")
-		return err
+		logger.WithField(tid.TransactionIDKey, transId).WithField("event", "SaveNeo4j").WithField("content_type", c.Type).WithError(err).Error("error: the query could not be executed ")
+		logger.WithMonitoringEvent("SaveNeo4j", transId, c.Type).WithError(err).Errorf("error: the query could not be executed ")
 	} else {
+		logger.WithField(tid.TransactionIDKey, transId).WithField("event", "SaveNeo4j").WithField("content_type", c.Type).WithError(err).Error("the query was successfully executed")
 		logger.WithMonitoringEvent("SaveNeo4j", transId, c.Type).Info("The query was successfully executed")
 	}
-	return cd.conn.CypherBatch(queries)
+	return err
 }
 
 func addStoryPackageRelationQuery(articleUUID, packageUUID string) *neoism.CypherQuery {
