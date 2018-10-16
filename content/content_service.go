@@ -8,7 +8,6 @@ import (
 	tid "github.com/Financial-Times/transactionid-utils-go"
 	"github.com/jmcvetta/neoism"
 	"github.com/Financial-Times/go-logger"
-	"fmt"
 )
 
 var contentTypesWithNoBody = map[string]bool{
@@ -94,7 +93,7 @@ func (cd service) Read(uuid string, transId string) (interface{}, bool, error) {
 //Write - Writes a content node
 func (cd service) Write(thing interface{}, transId string) error {
 	c := thing.(content)
-	fmt.Println("We are in Write")
+
 	// Letting through only articles (which have body), live blogs, content packages, graphics, videos and audios (which don't have a body)
 	if c.Body == "" && !contentTypesWithNoBody[c.Type] {
 		logger.WithField(tid.TransactionIDKey, transId).
@@ -164,15 +163,11 @@ func (cd service) Write(thing interface{}, transId string) error {
 	}
 
 	queries = append(queries, writeContentQuery)
-	fmt.Println("we are before cypherBatch")
 	err := cd.conn.CypherBatch(queries)
-	fmt.Println("******", err)
 	if err != nil {
-		logger.WithField(tid.TransactionIDKey, transId).WithField("event", "SaveNeo4j").WithField("content_type", c.Type).WithError(err).Error("error: the query could not be executed ")
-		logger.WithMonitoringEvent("SaveNeo4j", transId, c.Type).WithError(err).Errorf("error: the query could not be executed ")
+		logger.WithMonitoringEvent("SaveNeo4j", transId, c.Type).WithError(err).Errorf("error: the query could not be executed")
 	} else {
-		logger.WithField(tid.TransactionIDKey, transId).WithField("event", "SaveNeo4j").WithField("content_type", c.Type).Info("the query was successfully executed")
-		logger.WithMonitoringEvent("SaveNeo4j", transId, c.Type).Info("The query was successfully executed")
+		logger.WithMonitoringEvent("SaveNeo4j", transId, c.Type).Info("the query was successfully executed")
 	}
 	return err
 }
@@ -242,6 +237,10 @@ func (cd service) Delete(uuid string, transId string) (bool, error) {
 	}
 
 	err := cd.conn.CypherBatch([]*neoism.CypherQuery{clearNode, removeNodeIfUnused})
+	if err != nil {
+		logger.WithMonitoringEvent("SaveNeo4j", transId, "").WithError(err).Error("error: the delete query could not be executed")
+		return false, err
+	}
 
 	s1, err := clearNode.Stats()
 	if err != nil {
@@ -252,7 +251,7 @@ func (cd service) Delete(uuid string, transId string) (bool, error) {
 	if s1.ContainsUpdates && s1.LabelsRemoved > 0 {
 		deleted = true
 	}
-
+	logger.WithMonitoringEvent("SaveNeo4j", transId, "").Info("the delete query was successfully executed")
 	return deleted, err
 }
 
