@@ -8,6 +8,7 @@ import (
 	tid "github.com/Financial-Times/transactionid-utils-go"
 	"github.com/jmcvetta/neoism"
 	"github.com/Financial-Times/go-logger"
+	"fmt"
 )
 
 var contentTypesWithNoBody = map[string]bool{
@@ -93,7 +94,7 @@ func (cd service) Read(uuid string, transId string) (interface{}, bool, error) {
 //Write - Writes a content node
 func (cd service) Write(thing interface{}, transId string) error {
 	c := thing.(content)
-
+	fmt.Println("We are in Write")
 	// Letting through only articles (which have body), live blogs, content packages, graphics, videos and audios (which don't have a body)
 	if c.Body == "" && !contentTypesWithNoBody[c.Type] {
 		logger.WithField(tid.TransactionIDKey, transId).
@@ -163,12 +164,14 @@ func (cd service) Write(thing interface{}, transId string) error {
 	}
 
 	queries = append(queries, writeContentQuery)
+	fmt.Println("we are before cypherBatch")
 	err := cd.conn.CypherBatch(queries)
+	fmt.Println("******", err)
 	if err != nil {
 		logger.WithField(tid.TransactionIDKey, transId).WithField("event", "SaveNeo4j").WithField("content_type", c.Type).WithError(err).Error("error: the query could not be executed ")
 		logger.WithMonitoringEvent("SaveNeo4j", transId, c.Type).WithError(err).Errorf("error: the query could not be executed ")
 	} else {
-		logger.WithField(tid.TransactionIDKey, transId).WithField("event", "SaveNeo4j").WithField("content_type", c.Type).WithError(err).Error("the query was successfully executed")
+		logger.WithField(tid.TransactionIDKey, transId).WithField("event", "SaveNeo4j").WithField("content_type", c.Type).Info("the query was successfully executed")
 		logger.WithMonitoringEvent("SaveNeo4j", transId, c.Type).Info("The query was successfully executed")
 	}
 	return err
