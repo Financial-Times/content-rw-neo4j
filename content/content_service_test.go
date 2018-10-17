@@ -10,6 +10,7 @@ import (
 	"github.com/Financial-Times/neo-utils-go/neoutils"
 	"github.com/jmcvetta/neoism"
 	"github.com/stretchr/testify/assert"
+	"github.com/Financial-Times/go-logger"
 )
 
 const (
@@ -94,6 +95,10 @@ var updatedContent = content{
 	Title:         "New Ttitle",
 	PublishedDate: "1999-12-12T01:00:00.000Z",
 	Body:          "Doesn't matter",
+}
+
+func init() {
+	logger.InitDefaultLogger("content-rw-neo4j")
 }
 
 func TestDeleteWithNoRelsIsDeleted(t *testing.T) {

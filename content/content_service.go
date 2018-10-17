@@ -165,12 +165,11 @@ func (cd service) Write(thing interface{}, transId string) error {
 	queries = append(queries, writeContentQuery)
 	err := cd.conn.CypherBatch(queries)
 	if err != nil {
-		logger.WithMonitoringEvent("SaveNeo4j", transId, c.Type).WithError(err).Errorf("Error: the query could not be executed ")
-		return err
+		logger.WithMonitoringEvent("SaveNeo4j", transId, c.Type).WithError(err).Errorf("error: the query could not be executed")
 	} else {
-		logger.WithMonitoringEvent("SaveNeo4j", transId, c.Type).Info("The query was successfully executed")
+		logger.WithMonitoringEvent("SaveNeo4j", transId, c.Type).Info("the query was successfully executed")
 	}
-	return cd.conn.CypherBatch(queries)
+	return err
 }
 
 func addStoryPackageRelationQuery(articleUUID, packageUUID string) *neoism.CypherQuery {
@@ -238,6 +237,10 @@ func (cd service) Delete(uuid string, transId string) (bool, error) {
 	}
 
 	err := cd.conn.CypherBatch([]*neoism.CypherQuery{clearNode, removeNodeIfUnused})
+	if err != nil {
+		logger.WithMonitoringEvent("SaveNeo4j", transId, "").WithError(err).Error("error: the delete query could not be executed")
+		return false, err
+	}
 
 	s1, err := clearNode.Stats()
 	if err != nil {
@@ -248,7 +251,7 @@ func (cd service) Delete(uuid string, transId string) (bool, error) {
 	if s1.ContainsUpdates && s1.LabelsRemoved > 0 {
 		deleted = true
 	}
-
+	logger.WithMonitoringEvent("SaveNeo4j", transId, "").Info("the delete query was successfully executed")
 	return deleted, err
 }
 
