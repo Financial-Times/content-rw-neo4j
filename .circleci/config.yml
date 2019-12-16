@@ -2,7 +2,7 @@ version: 2
 jobs:
   build:
     docker:
-    - image: circleci/golang:1.10.2
+    - image: golang:1
     - image: neo4j:3.4.10-enterprise
       environment:
         NEO4J_AUTH: none
@@ -22,9 +22,10 @@ jobs:
     - run:
         name: External dependencies
         command: |
-          go get -u github.com/mattn/goveralls
-          go get -u github.com/jstemmer/go-junit-report
-          curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+          GO111MODULE=off go get -u github.com/jstemmer/go-junit-report
+          GO111MODULE=off go get -u github.com/mattn/goveralls
+          curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.18.0
+          wget https://raw.githubusercontent.com/Financial-Times/upp-coding-standard/v1.0.0/golangci-config/.golangci.yml         
     - run:
         name: Make result folders
         command: |
@@ -32,22 +33,26 @@ jobs:
           mkdir -p ${CIRCLE_COVERAGE_REPORT}
           mkdir -p ${CIRCLE_ARTIFACTS}
     - run:
-        name: Download vendored dependencies
-        command: dep ensure -v -vendor-only
-    - run:
         name: Go build
-        command: go build -v
+        command: go build -mod=readonly -v
     - run:
-        name: Run tests
-        command: go test -race -cover -coverprofile=${CIRCLE_COVERAGE_REPORT}/coverage.out ./... | go-junit-report > ${CIRCLE_TEST_REPORTS}/junit.xml
-    - run:
-        name: Upload coverage
-        command: goveralls -coverprofile=${CIRCLE_COVERAGE_REPORT}/coverage.out -service=circle-ci -repotoken=${COVERALLS_TOKEN}
-
+        name: Run linters
+        command: |
+          golangci-lint run --new-from-rev=$(git rev-parse origin/master) --config .golangci.yml --build-tags=integration
+    - run: 
+        name: Run tests and create coverage report
+        command: |
+          go test -mod=readonly -race -cover -coverprofile=${CIRCLE_COVERAGE_REPORT}/coverage.out ./... | go-junit-report > ${CIRCLE_TEST_REPORTS}/junit.xml
+    - run: 
+        name: Upload coverage report
+        command: |
+          goveralls -coverprofile=$CIRCLE_COVERAGE_REPORT/coverage.out -service=circle-ci -repotoken=$COVERALLS_TOKEN
+    - store_test_results:
+        path: /tmp/test-reports
     - store_artifacts:
         path: /tmp/artifacts
         destination: build
-
+        
   docker_build:
     working_directory: /content-rw-neo4j
     docker:
@@ -62,28 +67,29 @@ jobs:
   dredd:
     working_directory: /go/src/github.com/Financial-Times/content-rw-neo4j
     docker:
-    - image: bankrs/golang-dredd:go1.8.3-dredd4.4.0
+    - image: golang:1
       environment:
         GOPATH: /go
         NEO4J_TEST_URL: "http://localhost:7474/db/data/"
-    - image: neo4j:3.2.2-enterprise
+    - image: neo4j:3.4.10-enterprise
       environment:
         NEO4J_AUTH: none
         NEO4J_HEAP_MEMORY: 256
         NEO4J_CACHE_MEMORY: 256M
+        NEO4J_ACCEPT_LICENSE_AGREEMENT: "yes"
     environment:
     steps:
     - checkout
     - run:
-        name: External Dependencies
-        command: |
-          curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-    - run:
-        name: Go Dep
-        command: dep ensure -v -vendor-only
-    - run:
         name: Go Build
-        command: go build -v
+        command: go build -mod=readonly -v
+    - run:
+        name: Download dredd
+        command: |
+            curl -sL https://deb.nodesource.com/setup_11.x | bash -
+            DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs=11.\*
+            npm install -g --unsafe-perm --loglevel warn --user 0 --no-progress dredd@8.0.0
+            rm -rf /var/lib/apt/lists/*       
     - run:
         name: Dredd API Testing
         command: dredd

@@ -1,15 +1,29 @@
 # Content Reader/Writer for Neo4j (content-rw-neo4j)
-[![Circle CI](https://circleci.com/gh/Financial-Times/content-rw-neo4j.svg?style=shield)](https://circleci.com/gh/Financial-Times/content-rw-neo4j)[![Go Report Card](https://goreportcard.com/badge/github.com/Financial-Times/content-rw-neo4j)](https://goreportcard.com/report/github.com/Financial-Times/content-rw-neo4j) [![Coverage Status](https://coveralls.io/repos/github/Financial-Times/content-rw-neo4j/badge.svg)](https://coveralls.io/github/Financial-Times/content-rw-neo4j)
 
-__An API for reading/writing Content into Neo4j. Expects the content json supplied by the ingester.__
+[![Circle CI](https://circleci.com/gh/Financial-Times/content-rw-neo4j.svg?style=shield)](https://circleci.com/gh/Financial-Times/content-rw-neo4j)
+[![Go Report Card](https://goreportcard.com/badge/github.com/Financial-Times/content-rw-neo4j)](https://goreportcard.com/report/github.com/Financial-Times/content-rw-neo4j)
+[![Coverage Status](https://coveralls.io/repos/github/Financial-Times/content-rw-neo4j/badge.svg)](https://coveralls.io/github/Financial-Times/content-rw-neo4j)
+
+__An API for reading/writing Content into Neo4j. Expects the content JSON supplied by the ingester.__
 
 ## Installation
 
-```
-go get -u github.com/Financial-Times/content-rw-neo4j
-```
+Download the source code, dependencies, and build the binary:
 
+```
+go get github.com/Financial-Times/content-rw-neo4j
+cd $GOPATH/src/github.com/Financial-Times/content-rw-neo4j
+go install
+```
 ## Running
+
+To run the tests:
+
+````
+ go test -v -race ./...
+````
+
+To run the binary:
 
 ```
 $GOPATH/bin/content-rw-neo4j \
@@ -18,7 +32,7 @@ $GOPATH/bin/content-rw-neo4j \
    --batchSize=50 \
 ```
 
-All arguments are optional, please run the following command to see the defaults:
+All arguments are optional, run the following command to see the defaults:
 
 ```
 $GOPATH/bin/content-rw-neo4j --help
