@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/Financial-Times/base-ft-rw-app-go/baseftrwapp"
-	"github.com/Financial-Times/content-rw-neo4j/content"
+	"github.com/Financial-Times/content-rw-neo4j/v3/content"
 	fthealth "github.com/Financial-Times/go-fthealth/v1_1"
 	"github.com/Financial-Times/go-logger"
 	"github.com/Financial-Times/neo-utils-go/neoutils"
@@ -116,7 +116,7 @@ func makeCheck(service baseftrwapp.Service, cr neoutils.CypherRunner) fthealth.C
 	return fthealth.Check{
 		BusinessImpact:   "Cannot read/write content via this writer",
 		Name:             "Check connectivity to Neo4j",
-		PanicGuide:       "https://dewey.ft.com/upp-content-rw-neo4j.html",
+		PanicGuide:       "https://runbooks.in.ft.com/upp-content-rw-neo4j",
 		Severity:         1,
 		TechnicalSummary: fmt.Sprintf("Cannot connect to Neo4j instance %s with something written to it", cr),
 		Checker:          func() (string, error) { return "", service.Check() },
