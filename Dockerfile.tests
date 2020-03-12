@@ -1,0 +1,15 @@
+FROM golang:1
+
+ENV PROJECT=content-rw-neo4j
+ENV REPO_PATH="github.com/Financial-Times/${PROJECT}"
+
+COPY . $GOPATH/src/${REPO_PATH}
+
+RUN echo "Fetching dependencies..." \
+&& git clone https://github.com/vishnubob/wait-for-it.git \
+&& cd wait-for-it \
+&& mv ./wait-for-it.sh $GOPATH/src/${REPO_PATH}
+
+WORKDIR $GOPATH/src/${REPO_PATH}
+
+ENTRYPOINT ["./wait-for-it.sh", "neo4j:7474", "-t", "60", "--"]

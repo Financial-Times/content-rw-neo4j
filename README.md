@@ -15,13 +15,22 @@ go get github.com/Financial-Times/content-rw-neo4j
 cd $GOPATH/src/github.com/Financial-Times/content-rw-neo4j
 go install
 ```
+
 ## Running
 
-To run the tests:
+Run unit tests only:
 
-````
- go test -v -race ./...
-````
+```shell script
+go test -v -race ./...
+```
+
+Run unit and integration tests:
+
+```shell script
+docker-compose -f docker-compose-tests.yml up -d --build && \
+docker logs -f test-runner && \
+docker-compose -f docker-compose-tests.yml down -v
+```
 
 To run the binary:
 
@@ -57,6 +66,7 @@ The flow of information is as follows: Kafka (CMSPublication) => Ingester => con
 Currently, the following content types are eligible for being written into Neo:
 
 * Article
+* ContentPackage
 * Content
 * Video
 * Graphic

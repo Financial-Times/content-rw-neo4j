@@ -4,18 +4,19 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/Financial-Times/go-logger"
 	"github.com/Financial-Times/neo-utils-go/neoutils"
 	tid "github.com/Financial-Times/transactionid-utils-go"
 	"github.com/jmcvetta/neoism"
-	"github.com/Financial-Times/go-logger"
 )
 
 var contentTypesWithNoBody = map[string]bool{
-	"Content": true,
-	"Article": true,
-	"Video":   true,
-	"Graphic": true,
-	"Audio":   true,
+	"Content":        true,
+	"Article":        true,
+	"Video":          true,
+	"Graphic":        true,
+	"Audio":          true,
+	"ContentPackage": true,
 }
 
 // CypherDriver - CypherDriver
