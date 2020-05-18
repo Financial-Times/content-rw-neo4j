@@ -11,6 +11,7 @@ import (
 )
 
 const LiveBlogPackage = "LiveBlogPackage"
+const LiveBlogPost = "LiveBlogPost"
 
 var contentTypesWithNoBody = map[string]bool{
 	"Content":        true,
@@ -20,6 +21,7 @@ var contentTypesWithNoBody = map[string]bool{
 	"Audio":          true,
 	"ContentPackage": true,
 	LiveBlogPackage:  true,
+	LiveBlogPost:     true,
 }
 
 // CypherDriver - CypherDriver
