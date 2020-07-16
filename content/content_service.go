@@ -10,6 +10,9 @@ import (
 	"github.com/jmcvetta/neoism"
 )
 
+const LiveBlogPackage = "LiveBlogPackage"
+const LiveBlogPost = "LiveBlogPost"
+
 var contentTypesWithNoBody = map[string]bool{
 	"Content":        true,
 	"Article":        true,
@@ -17,6 +20,8 @@ var contentTypesWithNoBody = map[string]bool{
 	"Graphic":        true,
 	"Audio":          true,
 	"ContentPackage": true,
+	LiveBlogPackage:  true,
+	LiveBlogPost:     true,
 }
 
 // CypherDriver - CypherDriver
@@ -148,7 +153,11 @@ func (cd service) Write(thing interface{}, transId string) error {
 			Infof("There is a content package with uuid=%v attached to Article with uuid=%v", c.ContentPackage, c.UUID)
 		addContentPackageRelationQuery := addContentPackageRelationQuery(c.UUID, c.ContentPackage)
 		queries = append(queries, addContentPackageRelationQuery)
+
 		labels = labels + `:ContentPackage`
+		if c.Type == LiveBlogPackage {
+			labels = labels + `:` + LiveBlogPackage
+		}
 	}
 
 	statement := `MERGE (n:Thing {uuid: {uuid}})
