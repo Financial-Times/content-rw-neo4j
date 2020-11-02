@@ -2,4 +2,3 @@
 replicaCount: 2
 service:
   name: content-rw-neo4j
-eksCluster: true
