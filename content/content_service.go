@@ -63,7 +63,7 @@ func (cd service) Read(uuid string, transId string) (interface{}, bool, error) {
 			OPTIONAL MATCH (sp:Thing)-[rel1:IS_CURATED_FOR]->(n)
 			OPTIONAL MATCH (n)-[rel2:CONTAINS]->(cp:Thing)
 			WITH n,sp,cp
-			return  n.uuid as uuid,
+			RETURN n.uuid as uuid,
 				n.title as title,
 				n.publishedDate as publishedDate,
 				sp.uuid as storyPackage,
@@ -183,7 +183,7 @@ func (cd service) Write(thing interface{}, transId string) error {
 }
 
 func addStoryPackageRelationQuery(articleUUID, packageUUID string) *neoism.CypherQuery {
-	statement := `	MERGE(sp:Thing{uuid:{packageUuid}})
+	statement := `MERGE(sp:Thing{uuid:{packageUuid}})
 			MERGE(c:Thing{uuid:{contentUuid}})
 			MERGE(c)<-[rel:IS_CURATED_FOR]-(sp)`
 
@@ -198,7 +198,7 @@ func addStoryPackageRelationQuery(articleUUID, packageUUID string) *neoism.Cyphe
 }
 
 func addContentPackageRelationQuery(articleUUID, packageUUID string) *neoism.CypherQuery {
-	statement := `	MERGE(cp:Thing{uuid:{packageUuid}})
+	statement := `MERGE(cp:Thing{uuid:{packageUuid}})
 			MERGE(c:Thing{uuid:{contentUuid}})
 			MERGE(c)-[rel:CONTAINS]->(cp)`
 
@@ -214,53 +214,63 @@ func addContentPackageRelationQuery(articleUUID, packageUUID string) *neoism.Cyp
 
 //Delete - Deletes a content
 func (cd service) Delete(uuid string, transId string) (bool, error) {
-	clearNode := &neoism.CypherQuery{
+	// "clearCollectionNode" query handles a specific case when
+	// a Content Collection was deleted, which means its contents are removed
+	// and the "ContentCollection" label was removed, but the node remains in Neo4j
+	// with the label "Thing" only and still has a relation to a Content Package.
+	// When a delete request occurs for the very same Content Package,
+	// the related hanging node gets deleted by this query.
+
+	// Check "content-collection-rw-neo4j" service for the the Content Collection deletion query.
+	clearCollectionNode := &neoism.CypherQuery{
 		Statement: `
-			MATCH (p:Thing {uuid: {uuid}})
-			OPTIONAL MATCH (sp:Thing)-[rel1:IS_CURATED_FOR]->(p)
-			OPTIONAL MATCH (p)-[rel2:CONTAINS]->(contained_cp:Thing)
-			OPTIONAL MATCH (containing_cp:Thing)-[rel3:CONTAINS]->(p)
-			REMOVE p:Content
-			DELETE rel1, rel2, rel3
-			SET p={props}
+			MATCH (p:ContentPackage {uuid: {uuid}})-[rel:CONTAINS]->(cc:Thing)
+			OPTIONAL MATCH (cc)-[rel]-()
+			WITH cc, count(rel) AS relCount
+			WHERE relCount = 1 AND NOT cc:ContentCollection
+			DETACH DELETE cc
 		`,
 		Parameters: map[string]interface{}{
 			"uuid": uuid,
-			"props": map[string]interface{}{
-				"uuid": uuid,
-			},
+		},
+	}
+
+	removeNode := &neoism.CypherQuery{
+		Statement: `
+			MATCH (p:Thing {uuid: {uuid}})
+			DETACH DELETE p
+		`,
+		Parameters: map[string]interface{}{
+			"uuid": uuid,
 		},
 		IncludeStats: true,
 	}
 
-	removeNodeIfUnused := &neoism.CypherQuery{
-		Statement: `
-			MATCH (p:Thing {uuid: {uuid}})
-			OPTIONAL MATCH (p)-[a]-(x)
-			WITH p, count(a) AS relCount
-			WHERE relCount = 0
-			DELETE p
-		`,
-		Parameters: map[string]interface{}{
-			"uuid": uuid,
-		},
+	err := cd.conn.CypherBatch([]*neoism.CypherQuery{clearCollectionNode})
+	if err != nil {
+		logger.WithMonitoringEvent("SaveNeo4j", transId, "").WithField("uuid", uuid).WithError(err).Error("error: the extra delete query could not be executed")
+		return false, err
 	}
-
-	err := cd.conn.CypherBatch([]*neoism.CypherQuery{clearNode, removeNodeIfUnused})
+	// The queries should be executed in the specified order but `CypherBatch` does not guarantee order,
+	// so we execute them in separate batches
+	// dependency: if a CP is deleted before the first query is executed, there is no way to find the related node
+	// left after a ContentCollections is deleted
+	err = cd.conn.CypherBatch([]*neoism.CypherQuery{removeNode})
 	if err != nil {
 		logger.WithMonitoringEvent("SaveNeo4j", transId, "").WithField("uuid", uuid).WithError(err).Error("error: the delete query could not be executed")
 		return false, err
 	}
 
-	s1, err := clearNode.Stats()
+	s1, err := removeNode.Stats()
 	if err != nil {
 		return false, err
 	}
 
 	var deleted bool
-	if s1.ContainsUpdates && s1.LabelsRemoved > 0 {
+	if s1.NodesDeleted > 0 {
 		deleted = true
 	}
+
 	logger.WithMonitoringEvent("SaveNeo4j", transId, "").WithField("uuid", uuid).Info("the delete query was successfully executed")
 	return deleted, err
 }
@@ -270,7 +280,6 @@ func (cd service) DecodeJSON(dec *json.Decoder) (interface{}, string, error) {
 	c := content{}
 	err := dec.Decode(&c)
 	return c, c.UUID, err
-
 }
 
 // Count - Returns a count of the number of content in this Neo instance

@@ -22,6 +22,8 @@ const (
 	videoContentUUID             = "41bb9444-e3cf-46d4-8182-6702844dc5c1"
 	storyPackageUUID             = "3b08c76c-7479-461d-9f0e-a4e92dca56f7"
 	contentPackageUUID           = "45163790-eec9-11e6-abbc-ee7d9c5b3b90"
+	contentCollectionUUID        = "cc65c43a-fe4e-4315-854b-9b82435be036"
+	thingUUID                    = "ebcfe37d-9a70-4c8b-bf01-1feee4dff4b7"
 	genericContentPackageUUID    = "27cfe7eb-549d-4d51-9cfd-98ea887a571c"
 	graphicUUID                  = "087b42c2-ac7f-40b9-b112-98b3a7f9cd72"
 	audioContentUUID             = "128cfcf4-c394-4e71-8c65-198a675acf53"
@@ -128,7 +130,7 @@ func TestDeleteWithNoRelsIsDeleted(t *testing.T) {
 	assert.NoError(err, "Error trying to find content for uuid %s", standardContent.UUID)
 }
 
-func TestDeleteWithRelsBecomesThing(t *testing.T) {
+func TestDeleteWithRelsIsDeleted(t *testing.T) {
 	assert := assert.New(t)
 	db := getDatabaseConnectionAndCheckClean(t, assert)
 	contentDriver := getCypherDriver(db)
@@ -146,12 +148,68 @@ func TestDeleteWithRelsBecomesThing(t *testing.T) {
 	assert.Equal(content{}, c, "Found content %s who should have been deleted", c)
 	assert.False(found, "Found content for uuid %s who should have been deleted", standardContent.UUID)
 	assert.NoError(err, "Error trying to find content for uuid %s", standardContent.UUID)
-	assert.Equal(0, checkIsCuratedForRelationship(db, storyPackageUUID, assert), "incorrect number of isCuratedFor relationships")
-	assert.Equal(0, checkContainsRelationship(db, contentPackageUUID, assert), "incorrect number of contains relationships")
 
 	exists, err := doesThingExist(standardContent.UUID, db)
 	assert.NoError(err)
-	assert.True(exists, "Failed to find Thing for deleted content with relationships")
+	assert.False(exists, "Thing should not exist for deleted content with relations")
+}
+
+func TestDeleteContentPackageIsDeletedAttachedContentCollectionRemains(t *testing.T) {
+	assert := assert.New(t)
+	db := getDatabaseConnectionAndCheckClean(t, assert)
+	contentDriver := getCypherDriver(db)
+	defer cleanDB(db, t, assert)
+
+	assert.NoError(contentDriver.Write(genericContentPackage, "TEST_TRANS_ID"), "Failed to write content package")
+	writeNodeWithLabels(db, contentCollectionUUID, "Thing:Content:ContentCollection", t, assert)
+	writeContentPackageContainsRelation(db, genericContentPackage.UUID, contentCollectionUUID, t, assert)
+
+	deleted, err := contentDriver.Delete(genericContentPackage.UUID, "TEST_TRANS_ID")
+	assert.NoError(err, "Error deleting Content Package for uuid %s", genericContentPackage.UUID)
+	assert.True(deleted, "Didn't manage to delete Content Package for uuid %s", genericContentPackage.UUID)
+
+	c, found, err := contentDriver.Read(genericContentPackage.UUID, "TEST_TRANS_ID")
+
+	assert.Equal(content{}, c, "Found Content Package %s who should have been deleted", c)
+	assert.False(found, "Found Content Package for uuid %s who should have been deleted", genericContentPackage.UUID)
+	assert.NoError(err, "Error trying to find Content Package for uuid %s", genericContentPackage.UUID)
+
+	exists, err := doesThingExist(genericContentPackage.UUID, db)
+	assert.NoError(err)
+	assert.False(exists, "Thing should not exist for deleted Content Package")
+
+	existsCC, err := doesThingExist(contentCollectionUUID, db)
+	assert.NoError(err)
+	assert.True(existsCC, "Content Collection should exist")
+}
+
+func TestDeleteContentPackageIsDeletedAttachedNodeIsAlsoDeleted(t *testing.T) {
+	assert := assert.New(t)
+	db := getDatabaseConnectionAndCheckClean(t, assert)
+	contentDriver := getCypherDriver(db)
+	defer cleanDB(db, t, assert)
+
+	assert.NoError(contentDriver.Write(genericContentPackage, "TEST_TRANS_ID"), "Failed to write content package")
+	writeNodeWithLabels(db, thingUUID, "Thing", t, assert)
+	writeContentPackageContainsRelation(db, genericContentPackage.UUID, thingUUID, t, assert)
+
+	deleted, err := contentDriver.Delete(genericContentPackage.UUID, "TEST_TRANS_ID")
+	assert.NoError(err, "Error deleting Content Package for uuid %s", genericContentPackage.UUID)
+	assert.True(deleted, "Didn't manage to delete Content Package for uuid %s", genericContentPackage.UUID)
+
+	c, found, err := contentDriver.Read(genericContentPackage.UUID, "TEST_TRANS_ID")
+
+	assert.Equal(content{}, c, "Found Content Package %s who should have been deleted", c)
+	assert.False(found, "Found Content Package for uuid %s who should have been deleted", genericContentPackage.UUID)
+	assert.NoError(err, "Error trying to find Content Package for uuid %s", genericContentPackage.UUID)
+
+	exists, err := doesThingExist(genericContentPackage.UUID, db)
+	assert.NoError(err)
+	assert.False(exists, "Thing should not exist for deleted Content Package")
+
+	existsThing, err := doesThingExist(thingUUID, db)
+	assert.NoError(err)
+	assert.False(existsThing, "Thing related to deleted Content Package should not exist")
 }
 
 func TestCreateAllValuesPresent(t *testing.T) {
@@ -489,6 +547,8 @@ func cleanDB(db neoutils.CypherRunner, t *testing.T, assert *assert.Assertions) 
 		videoContentUUID,
 		storyPackageUUID,
 		contentPackageUUID,
+		contentCollectionUUID,
+		thingUUID,
 		genericContentPackageUUID,
 		graphicUUID,
 		audioContentUUID,
@@ -508,15 +568,52 @@ func cleanDB(db neoutils.CypherRunner, t *testing.T, assert *assert.Assertions) 
 	assert.NoError(err)
 }
 
+func writeContentPackageContainsRelation(db neoutils.NeoConnection, cpUUID string, UUID string, t *testing.T, assert *assert.Assertions) {
+	var writeRelation string
+	var qs []*neoism.CypherQuery
+
+	writeRelation = `
+	MATCH (cp:ContentPackage {uuid:{cpUUID}}), (t {uuid:{UUID}})
+	CREATE (cp)-[pred:CONTAINS]->(t)
+	`
+
+	qs = []*neoism.CypherQuery{
+		{
+			Statement:  writeRelation,
+			Parameters: neoism.Props{"cpUUID": cpUUID, "UUID": UUID},
+		},
+	}
+
+	err := db.CypherBatch(qs)
+	assert.NoError(err)
+}
+
+func writeNodeWithLabels(db neoutils.NeoConnection, UUID string, labels string, t *testing.T, assert *assert.Assertions) {
+	var writeThingWithLabelsQuery string
+	var qs []*neoism.CypherQuery
+
+	writeThingWithLabelsQuery = `CREATE (n:` + labels + `{uuid: {uuid}})`
+
+	qs = []*neoism.CypherQuery{
+		{
+			Statement:  writeThingWithLabelsQuery,
+			Parameters: neoism.Props{"uuid": UUID},
+		},
+	}
+
+	err := db.CypherBatch(qs)
+	assert.NoError(err)
+}
+
 func writeRelationship(db neoutils.NeoConnection, contentID string, conceptID string, t *testing.T, assert *assert.Assertions) {
 	var annotateQuery string
 	var qs []*neoism.CypherQuery
 
 	annotateQuery = `
-                MERGE (content:Thing{uuid:{contentId}})
-                MERGE (concept:Thing) ON CREATE SET concept.uuid = {conceptId}
-                MERGE (content)-[pred:SOME_PPREDICATE]->(concept)
-          `
+		MERGE (content:Thing{uuid:{contentId}})
+		MERGE (concept:Thing) ON CREATE SET concept.uuid = {conceptId}
+		MERGE (content)-[pred:SOME_PPREDICATE]->(concept)
+		`
 
 	qs = []*neoism.CypherQuery{
 		{
@@ -535,7 +632,9 @@ func doesThingExist(uuid string, db neoutils.NeoConnection) (bool, error) {
 		UUID string `json:"uuid,omitempty"`
 	}
 	query := &neoism.CypherQuery{
-		Statement: "MATCH (t:Thing {uuid:{uuid}}) RETURN t.uuid as uuid",
+		Statement: `
+			MATCH (t:Thing {uuid:{uuid}})
+			RETURN t.uuid as uuid`,
 		Parameters: neoism.Props{
 			"uuid": uuid,
 		},
@@ -547,8 +646,9 @@ func doesThingExist(uuid string, db neoutils.NeoConnection) (bool, error) {
 }
 
 func checkIsCuratedForRelationship(db neoutils.NeoConnection, spID string, assert *assert.Assertions) int {
-	countQuery := `	MATCH (t:Thing{uuid:{storyPackageId}})-[r:IS_CURATED_FOR]->(x)
-			RETURN count(r) as c`
+	countQuery := `
+		MATCH (t:Thing{uuid:{storyPackageId}})-[r:IS_CURATED_FOR]->(x)
+		RETURN count(r) as c`
 
 	var results []struct {
 		Count int `json:"c"`
@@ -567,8 +667,9 @@ func checkIsCuratedForRelationship(db neoutils.NeoConnection, spID string, asser
 }
 
 func checkContainsRelationship(db neoutils.NeoConnection, cpID string, assert *assert.Assertions) int {
-	countQuery := `	MATCH (t:Thing{uuid:{contentPackageId}})<-[r:CONTAINS]-(x)
-			RETURN count(r) as c`
+	countQuery := `
+		MATCH (t:Thing{uuid:{contentPackageId}})<-[r:CONTAINS]-(x)
+		RETURN count(r) as c`
 
 	var results []struct {
 		Count int `json:"c"`
@@ -595,7 +696,8 @@ func checkDbClean(db neoutils.CypherRunner, t *testing.T) {
 
 	checkGraph := neoism.CypherQuery{
 		Statement: `
-			MATCH (t:Thing) WHERE t.uuid in {uuids} RETURN t.uuid
+			MATCH (t:Thing) WHERE t.uuid in {uuids}
+			RETURN t.uuid
 		`,
 		Parameters: neoism.Props{
 			"uuids": []string{standardContent.UUID, conceptUUID},
