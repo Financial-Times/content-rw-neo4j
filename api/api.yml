@@ -48,22 +48,6 @@ paths:
               title:
                 type: string
                 x-example: Profits plunge at Vatican bank
-              byline:
-                type: string
-                x-example: By Giulia Segreti in Rome
-              identifiers:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    authority:
-                      type: string
-                      description: FT identifier authority
-                      x-example: |
-                        http://api.ft.com/system/FTCOM-METHODE
-                    identifierValue:
-                      type: string
-                      x-example: 4f1e764a-0744-11e4-bc71-002128161462
               publishedDate:
                 type: string
                 format: dateTime
@@ -73,6 +57,9 @@ paths:
                 x-example: |
                   <body></body>
                 description: The body of the article in FT xml format
+              type:
+                type: string
+                x-example: Article
               storyPackage:
                 type: string
                 x-example: 14a68464-c398-4fd4-bcc1-c06b30bf8d45
