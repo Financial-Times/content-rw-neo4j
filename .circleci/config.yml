@@ -11,7 +11,7 @@ jobs:
       environment:
         GOPATH: /go
         NEO4J_TEST_URL: "http://localhost:7474/db/data/"
-    - image: neo4j:3.4.10-enterprise
+    - image: neo4j:3.5.28-enterprise
       environment:
         NEO4J_AUTH: none
         NEO4J_HEAP_MEMORY: 256
