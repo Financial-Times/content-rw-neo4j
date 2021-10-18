@@ -10,7 +10,7 @@ jobs:
     - image: golang:1
       environment:
         GOPATH: /go
-        NEO4J_TEST_URL: "http://localhost:7474/db/data/"
+        NEO4J_TEST_URL: "http://localhost:7475"
     - image: neo4j:3.5.28-enterprise
       environment:
         NEO4J_AUTH: none
