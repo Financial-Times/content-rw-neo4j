@@ -35,9 +35,16 @@ func NewContentService(d *cmneo4j.Driver) Service {
 
 //Initialise ensures constraints on content uuid
 func (cd Service) Initialise() error {
-
-	return cd.driver.EnsureConstraints(map[string]string{
+	err := cd.driver.EnsureConstraints(map[string]string{
 		"Content": "uuid"})
+
+	// We are ignoring ErrNeo4jVersionNotSupported because the service is expected
+	// to work with Neo4j v4 and if it's working Neo4j v3.x we expect that
+	// the required constraints are already created in Neo4j.
+	if errors.Is(err, cmneo4j.ErrNeo4jVersionNotSupported) {
+		return nil
+	}
+	return err
 }
 
 // Check - Feeds into the Healthcheck and checks whether we can connect to Neo and that the datastore isn't empty and
