@@ -111,7 +111,7 @@ func TestDeleteWithNoRelsIsDeleted(t *testing.T) {
 	assert := assert.New(t)
 	d := getDriverAndCheckClean(t, assert)
 	contentService := getContentService(d)
-	defer cleanDB(d, t, assert)
+	defer cleanDB(d, assert)
 
 	assert.NoError(contentService.Write(shorterContent, "TEST_TRANS_ID"), "Failed to write content")
 
@@ -130,7 +130,7 @@ func TestDeleteWithRelsIsDeleted(t *testing.T) {
 	assert := assert.New(t)
 	d := getDriverAndCheckClean(t, assert)
 	s := getContentService(d)
-	defer cleanDB(d, t, assert)
+	defer cleanDB(d, assert)
 
 	assert.NoError(s.Write(standardContent, "TEST_TRANS_ID"), "Failed to write content")
 	writeRelationship(d, standardContent.UUID, conceptUUID, t, assert)
@@ -154,10 +154,10 @@ func TestDeleteContentPackageIsDeletedAttachedContentCollectionRemains(t *testin
 	assert := assert.New(t)
 	d := getDriverAndCheckClean(t, assert)
 	contentService := getContentService(d)
-	defer cleanDB(d, t, assert)
+	defer cleanDB(d, assert)
 
 	assert.NoError(contentService.Write(genericContentPackage, "TEST_TRANS_ID"), "Failed to write content package")
-	writeNodeWithLabels(d, contentCollectionUUID, "Thing:Content:ContentCollection", t, assert)
+	writeNodeWithLabels(d, contentCollectionUUID, "Thing:Content:ContentCollection", assert)
 	writeContentPackageContainsRelation(d, genericContentPackage.UUID, contentCollectionUUID, assert)
 
 	deleted, err := contentService.Delete(genericContentPackage.UUID, "TEST_TRANS_ID")
@@ -183,7 +183,7 @@ func TestDeleteContentPackageIsDeletedAttachedNodeIsAlsoDeleted(t *testing.T) {
 	assert := assert.New(t)
 	d := getDriverAndCheckClean(t, assert)
 	contentService := getContentService(d)
-	defer cleanDB(d, t, assert)
+	defer cleanDB(d, assert)
 
 	assert.NoError(contentService.Write(genericContentPackage, "TEST_TRANS_ID"), "Failed to write content package")
 	writeNodeWithLabels(d, thingUUID, "Thing", t, assert)
@@ -213,7 +213,7 @@ func TestCreateAllValuesPresent(t *testing.T) {
 
 	d := getDriverAndCheckClean(t, assert)
 	contentDriver := getContentService(d)
-	defer cleanDB(d, t, assert)
+	defer cleanDB(d, assert)
 
 	assert.NoError(contentDriver.Write(standardContent, "TEST_TRANS_ID"), "Failed to write content")
 
@@ -235,7 +235,7 @@ func TestCreateNotAllValuesPresent(t *testing.T) {
 
 	d := getDriverAndCheckClean(t, assert)
 	contentDriver := getContentService(d)
-	defer cleanDB(d, t, assert)
+	defer cleanDB(d, assert)
 
 	assert.NoError(contentDriver.Write(shorterContent, "TEST_TRANS_ID"), "Failed to write content")
 
@@ -250,7 +250,7 @@ func TestWillUpdateProperties(t *testing.T) {
 	assert := assert.New(t)
 	d := getDriverAndCheckClean(t, assert)
 	contentDriver := getContentService(d)
-	defer cleanDB(d, t, assert)
+	defer cleanDB(d, assert)
 
 	assert.NoError(contentDriver.Write(standardContent, "TEST_TRANS_ID"), "Failed to write content")
 	storedContent, _, err := contentDriver.Read(contentUUID, "TEST_TRANS_ID")
@@ -271,7 +271,7 @@ func TestUpdateWillRemovePropertiesNoLongerPresent(t *testing.T) {
 	assert := assert.New(t)
 	d := getDriverAndCheckClean(t, assert)
 	contentDriver := getContentService(d)
-	defer cleanDB(d, t, assert)
+	defer cleanDB(d, assert)
 
 	assert.NoError(contentDriver.Write(standardContentPackage, "TEST_TRANS_ID"), "Failed to write content")
 	storedContent, _, err := contentDriver.Read(contentUUID, "TEST_TRANS_ID")
@@ -298,7 +298,7 @@ func TestWriteCalculateEpocCorrectly(t *testing.T) {
 
 	d := getDriverAndCheckClean(t, assert)
 	contentService := getContentService(d)
-	defer cleanDB(d, t, assert)
+	defer cleanDB(d, assert)
 
 	uuid := standardContent.UUID
 	contentReceived := content{UUID: uuid, Title: "TestContent", PublishedDate: "1970-01-01T01:00:00.000Z", Body: "Some Test text"}
@@ -329,7 +329,7 @@ func TestWritePrefLabelIsAlsoWrittenAndIsEqualToTitle(t *testing.T) {
 
 	d := getDriverAndCheckClean(t, assert)
 	contentService := getContentService(d)
-	defer cleanDB(d, t, assert)
+	defer cleanDB(d, assert)
 
 	err := contentService.Write(standardContent, "TEST_TRANS_ID")
 	assert.NoError(err)
@@ -358,7 +358,7 @@ func TestWriteNodeLabelsAreWrittenForContent(t *testing.T) {
 
 	d := getDriverAndCheckClean(t, assert)
 	contentService := getContentService(d)
-	defer cleanDB(d, t, assert)
+	defer cleanDB(d, assert)
 
 	err := contentService.Write(standardContent, "TEST_TRANS_ID")
 	assert.NoError(err)
@@ -391,7 +391,7 @@ func TestWriteNodeLabelsAreWrittenForContentPackage(t *testing.T) {
 
 	d := getDriverAndCheckClean(t, assert)
 	contentService := getContentService(d)
-	defer cleanDB(d, t, assert)
+	defer cleanDB(d, assert)
 
 	err := contentService.Write(standardContentPackage, "TEST_TRANS_ID")
 	assert.NoError(err)
@@ -423,7 +423,7 @@ func TestWriteNodeLabelsAreWrittenForGenericContentPackage(t *testing.T) {
 
 	d := getDriverAndCheckClean(t, assert)
 	contentService := getContentService(d)
-	defer cleanDB(d, t, assert)
+	defer cleanDB(d, assert)
 
 	err := contentService.Write(genericContentPackage, "TEST_TRANS_ID")
 	assert.NoError(err)
@@ -453,7 +453,7 @@ func TestContentWontBeWrittenIfNoBody(t *testing.T) {
 	assert := assert.New(t)
 	d := getDriverAndCheckClean(t, assert)
 	contentService := getContentService(d)
-	defer cleanDB(d, t, assert)
+	defer cleanDB(d, assert)
 
 	err := contentService.Write(contentWithoutABody, "TEST_TRANS_ID")
 	assert.NoError(err, "Failed to write content")
@@ -468,7 +468,7 @@ func TestContentWontBeWrittenIfNoBodyWithInvalidType(t *testing.T) {
 	assert := assert.New(t)
 	d := getDriverAndCheckClean(t, assert)
 	contentService := getContentService(d)
-	defer cleanDB(d, t, assert)
+	defer cleanDB(d, assert)
 
 	assert.NoError(contentService.Write(contentWithoutABodyWithType, "TEST_TRANS_ID"), "Failed to write content")
 	storedContent, _, err := contentService.Read(contentWithoutABodyWithType.UUID, "TEST_TRANS_ID")
@@ -501,7 +501,7 @@ func testContentWillBeWritten(t *testing.T, c content) {
 	assert := assert.New(t)
 	d := getDriverAndCheckClean(t, assert)
 	s := getContentService(d)
-	defer cleanDB(d, t, assert)
+	defer cleanDB(d, assert)
 
 	assert.NoError(s.Write(c, "TEST_TRANS_ID"), "Failed to write content")
 
@@ -516,7 +516,7 @@ func testContentWillBeWritten(t *testing.T, c content) {
 
 func getDriverAndCheckClean(t *testing.T, assert *assert.Assertions) *cmneo4j.Driver {
 	d := getNeoDriver(assert)
-	cleanDB(d, t, assert)
+	cleanDB(d, assert)
 	checkDbClean(d, t)
 	return d
 }
@@ -532,7 +532,7 @@ func getNeoDriver(assert *assert.Assertions) *cmneo4j.Driver {
 	return d
 }
 
-func cleanDB(d *cmneo4j.Driver, t *testing.T, assert *assert.Assertions) {
+func cleanDB(d *cmneo4j.Driver, assert *assert.Assertions) {
 	uuids := []string{
 		contentUUID,
 		conceptUUID,
@@ -584,7 +584,7 @@ func writeContentPackageContainsRelation(d *cmneo4j.Driver, cpUUID string, UUID 
 	assert.NoError(err)
 }
 
-func writeNodeWithLabels(d *cmneo4j.Driver, UUID string, labels string, t *testing.T, assert *assert.Assertions) {
+func writeNodeWithLabels(d *cmneo4j.Driver, UUID string, labels string, assert *assert.Assertions) {
 	writeThingWithLabelsQuery := `CREATE (n:` + labels + `{uuid: {uuid}})`
 
 	qs := []*cmneo4j.Query{
@@ -600,7 +600,7 @@ func writeNodeWithLabels(d *cmneo4j.Driver, UUID string, labels string, t *testi
 	assert.NoError(err)
 }
 
-func writeRelationship(d *cmneo4j.Driver, contentID string, conceptID string, t *testing.T, assert *assert.Assertions) {
+func writeRelationship(d *cmneo4j.Driver, contentID string, conceptID string, assert *assert.Assertions) {
 	annotateQuery := `
 		MERGE (content:Thing{uuid:{contentId}})
 		MERGE (concept:Thing) ON CREATE SET concept.uuid = {conceptId}
@@ -707,6 +707,6 @@ func checkDbClean(d *cmneo4j.Driver, t *testing.T) {
 
 func getContentService(d *cmneo4j.Driver) Service {
 	cs := NewContentService(d)
-	cs.Initialise()
+	_ := cs.Initialise()
 	return cs
 }

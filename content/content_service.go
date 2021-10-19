@@ -47,7 +47,7 @@ func (cd Service) Check() error {
 }
 
 // Read - reads a content given a UUID
-func (cd Service) Read(uuid string, transId string) (interface{}, bool, error) {
+func (cd Service) Read(uuid string, transID string) (interface{}, bool, error) {
 	var results []struct {
 		content
 	}
@@ -91,7 +91,7 @@ func (cd Service) Read(uuid string, transId string) (interface{}, bool, error) {
 }
 
 //Write - Writes a content node
-func (cd Service) Write(thing interface{}, transId string) error {
+func (cd Service) Write(thing interface{}, transID string) error {
 	c := thing.(content)
 
 	// Letting through only articles (which have body), live blogs, content packages, graphics, videos and audios (which don't have a body)
@@ -197,7 +197,7 @@ func addContentPackageRelationQuery(articleUUID, packageUUID string) *cmneo4j.Qu
 }
 
 //Delete - Deletes a content item
-func (cd Service) Delete(uuid string, transId string) (bool, error) {
+func (cd Service) Delete(uuid string, transID string) (bool, error) {
 	// "clearCollectionNode" query handles a specific case when
 	// a Content Collection was deleted, which means its contents are removed
 	// and the "ContentCollection" label was removed, but the node remains in Neo4j

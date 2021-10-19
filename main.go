@@ -73,7 +73,7 @@ func main() {
 	}).Info("Application starting...")
 
 	app.Action = func() {
-		log.Info("Application started with args %s", os.Args)
+		log.Infof("Application started with args %s", os.Args)
 
 		driver, err := cmneo4j.NewDefaultDriver(*neoURL, log)
 		if err != nil {
