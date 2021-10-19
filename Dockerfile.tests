@@ -12,7 +12,7 @@ RUN echo "Fetching dependencies..." \
 && git config --global url."https://${GITHUB_USERNAME}:${GITHUB_TOKEN}@github.com".insteadOf "https://github.com" \
 && git clone https://github.com/vishnubob/wait-for-it.git \
 && cd wait-for-it \
-&& mv ./wait-for-it.sh $GOPATH/src/${REPO_PATH}
+&& mv ./wait-for-it.sh $GOPATH/src/${REPO_PATH} \
 && go env -w GOPRIVATE=github.com/Financial-Times
 
 WORKDIR $GOPATH/src/${REPO_PATH}

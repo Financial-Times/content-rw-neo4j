@@ -38,7 +38,7 @@ func (cd Service) Initialise() error {
 	err := cd.driver.EnsureConstraints(map[string]string{
 		"Content": "uuid"})
 
-	// We are ignoring ErrNeo4jVersionNotSupported because the service is expected
+	// We ignore ErrNeo4jVersionNotSupported because the service is expected
 	// to work with Neo4j v4 and if it's working Neo4j v3.x we expect that
 	// the required constraints are already created in Neo4j.
 	if errors.Is(err, cmneo4j.ErrNeo4jVersionNotSupported) {
@@ -266,7 +266,6 @@ func (cd Service) DecodeJSON(dec *json.Decoder) (interface{}, string, error) {
 
 // Count - Returns a count of the number of content items in this Neo instance
 func (cd Service) Count() (int, error) {
-
 	var results []struct {
 		Count int `json:"c"`
 	}
@@ -281,7 +280,6 @@ func (cd Service) Count() (int, error) {
 	if errors.Is(err, cmneo4j.ErrNoResultsFound) {
 		return 0, nil
 	}
-
 	if err != nil {
 		return 0, err
 	}

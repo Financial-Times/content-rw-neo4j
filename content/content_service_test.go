@@ -123,7 +123,11 @@ func TestDeleteWithNoRelsIsDeleted(t *testing.T) {
 
 	assert.Equal(content{}, c, "Found content %s who should have been deleted", c)
 	assert.False(deleted, "Found content for uuid %s who should have been deleted", standardContent.UUID)
-	assert.NoError(err, "Error trying to find content for uuid %s", standardContent.UUID)
+	if errors.Is(err, cmneo4j.ErrNoResultsFound) {
+		assert.Empty(c)
+	} else {
+		assert.NoError(err, "Error trying to find content for uuid %s", standardContent.UUID)
+	}
 }
 
 func TestDeleteWithRelsIsDeleted(t *testing.T) {
@@ -133,7 +137,7 @@ func TestDeleteWithRelsIsDeleted(t *testing.T) {
 	defer cleanDB(d, assert)
 
 	assert.NoError(s.Write(standardContent, "TEST_TRANS_ID"), "Failed to write content")
-	writeRelationship(d, standardContent.UUID, conceptUUID, t, assert)
+	writeRelationship(d, standardContent.UUID, conceptUUID, assert)
 
 	deleted, err := s.Delete(standardContent.UUID, "TEST_TRANS_ID")
 	assert.NoError(err, "Error deleting content for uuid %s", standardContent.UUID)
@@ -143,7 +147,11 @@ func TestDeleteWithRelsIsDeleted(t *testing.T) {
 
 	assert.Equal(content{}, c, "Found content %s who should have been deleted", c)
 	assert.False(found, "Found content for uuid %s who should have been deleted", standardContent.UUID)
-	assert.NoError(err, "Error trying to find content for uuid %s", standardContent.UUID)
+	if errors.Is(err, cmneo4j.ErrNoResultsFound) {
+		assert.Empty(c)
+	} else {
+		assert.NoError(err, "Error trying to find content for uuid %s", standardContent.UUID)
+	}
 
 	exists, err := doesThingExist(standardContent.UUID, d)
 	assert.NoError(err)
@@ -168,7 +176,12 @@ func TestDeleteContentPackageIsDeletedAttachedContentCollectionRemains(t *testin
 
 	assert.Equal(content{}, c, "Found Content Package %contentService who should have been deleted", c)
 	assert.False(found, "Found Content Package for uuid %contentService who should have been deleted", genericContentPackage.UUID)
-	assert.NoError(err, "Error trying to find Content Package for uuid %contentService", genericContentPackage.UUID)
+
+	if errors.Is(err, cmneo4j.ErrNoResultsFound) {
+		assert.Empty(c)
+	} else {
+		assert.NoError(err, "Error trying to find Content Package for uuid %s", genericContentPackage.UUID)
+	}
 
 	exists, err := doesThingExist(genericContentPackage.UUID, d)
 	assert.NoError(err)
@@ -186,7 +199,7 @@ func TestDeleteContentPackageIsDeletedAttachedNodeIsAlsoDeleted(t *testing.T) {
 	defer cleanDB(d, assert)
 
 	assert.NoError(contentService.Write(genericContentPackage, "TEST_TRANS_ID"), "Failed to write content package")
-	writeNodeWithLabels(d, thingUUID, "Thing", t, assert)
+	writeNodeWithLabels(d, thingUUID, "Thing", assert)
 	writeContentPackageContainsRelation(d, genericContentPackage.UUID, thingUUID, assert)
 
 	deleted, err := contentService.Delete(genericContentPackage.UUID, "TEST_TRANS_ID")
@@ -197,7 +210,11 @@ func TestDeleteContentPackageIsDeletedAttachedNodeIsAlsoDeleted(t *testing.T) {
 
 	assert.Equal(content{}, c, "Found Content Package %contentService who should have been deleted", c)
 	assert.False(found, "Found Content Package for uuid %contentService who should have been deleted", genericContentPackage.UUID)
-	assert.NoError(err, "Error trying to find Content Package for uuid %contentService", genericContentPackage.UUID)
+	if errors.Is(err, cmneo4j.ErrNoResultsFound) {
+		assert.Empty(c)
+	} else {
+		assert.NoError(err, "Error trying to find Content Package for uuid %contentService", genericContentPackage.UUID)
+	}
 
 	exists, err := doesThingExist(genericContentPackage.UUID, d)
 	assert.NoError(err)
@@ -459,8 +476,11 @@ func TestContentWontBeWrittenIfNoBody(t *testing.T) {
 	assert.NoError(err, "Failed to write content")
 
 	storedContent, _, err := contentService.Read(contentWithoutABody.UUID, "TEST_TRANS_ID")
-
-	assert.NoError(err)
+	if errors.Is(err, cmneo4j.ErrNoResultsFound) {
+		assert.Empty(storedContent)
+	} else {
+		assert.NoError(err)
+	}
 	assert.Equal(content{}, storedContent, "No content should be written when the content has no body")
 }
 
@@ -473,7 +493,11 @@ func TestContentWontBeWrittenIfNoBodyWithInvalidType(t *testing.T) {
 	assert.NoError(contentService.Write(contentWithoutABodyWithType, "TEST_TRANS_ID"), "Failed to write content")
 	storedContent, _, err := contentService.Read(contentWithoutABodyWithType.UUID, "TEST_TRANS_ID")
 
-	assert.NoError(err)
+	if errors.Is(err, cmneo4j.ErrNoResultsFound) {
+		assert.Empty(storedContent)
+	} else {
+		assert.NoError(err)
+	}
 	assert.Equal(content{}, storedContent, "No content should be written when the content has no body")
 }
 
@@ -635,7 +659,9 @@ func doesThingExist(uuid string, d *cmneo4j.Driver) (bool, error) {
 		Result: &result,
 	}
 	err := d.Write(query)
-
+	if errors.Is(err, cmneo4j.ErrNoResultsFound) {
+		return false, nil
+	}
 	return len(result) > 0, err
 }
 
@@ -701,12 +727,15 @@ func checkDbClean(d *cmneo4j.Driver, t *testing.T) {
 		Result: &result,
 	}
 	err := d.Write(checkGraph)
-	assert.NoError(err)
-	assert.Empty(result)
+	if errors.Is(err, cmneo4j.ErrNoResultsFound) {
+		assert.Empty(result)
+	} else {
+		assert.NoError(err)
+	}
 }
 
 func getContentService(d *cmneo4j.Driver) Service {
 	cs := NewContentService(d)
-	_ := cs.Initialise()
+	_ = cs.Initialise()
 	return cs
 }
