@@ -9,7 +9,7 @@ services:
         GITHUB_TOKEN: "${GITHUB_TOKEN}"
     container_name: test-runner
     environment:
-      - NEO4J_TEST_URL=bolt://neo4j:7475
+      - NEO4J_TEST_URL=bolt://neo4j:7687
       - CGO_ENABLED=1
     command: ["go", "test", "-mod=readonly", "-v", "-race", "-tags=integration", "./..."]
     depends_on:
