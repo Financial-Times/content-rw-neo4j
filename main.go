@@ -82,10 +82,6 @@ func main() {
 		defer driver.Close()
 
 		contentDriver := content.NewContentService(driver)
-		err = contentDriver.Initialise()
-		if err != nil {
-			log.WithError(err).Fatal("Cannot initialise service")
-		}
 
 		services := map[string]baseftrwapp.Service{
 			"content": contentDriver,
@@ -98,7 +94,6 @@ func main() {
 
 		ymlBytes, err := ioutil.ReadFile(*apiYml)
 		if err != nil {
-			//logger.WithField("api-yml", *apiYml).Warn("Failed to read OpenAPI yml file, please confirm the file exists and is not empty.")
 			ymlBytes = nil // the base-ft-rw-app-go lib will not add the /__api endpoint if OpenAPIData is nil
 		}
 
