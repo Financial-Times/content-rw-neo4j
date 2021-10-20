@@ -38,7 +38,7 @@ func main() {
 	neoURL := app.String(cli.StringOpt{
 		Name:   "neo-url",
 		Value:  "bolt://localhost:7687",
-		Desc:   "neo4j endpoint URL",
+		Desc:   "neoURL must point to a leader node or use neo4j:// scheme, otherwise writes will fail",
 		EnvVar: "NEO_URL",
 	})
 
@@ -82,7 +82,10 @@ func main() {
 		defer driver.Close()
 
 		contentDriver := content.NewContentService(driver)
-		contentDriver.Initialise()
+		err = contentDriver.Initialise()
+		if err != nil {
+			log.WithError(err).Fatal("Cannot initialise service")
+		}
 
 		services := map[string]baseftrwapp.Service{
 			"content": contentDriver,

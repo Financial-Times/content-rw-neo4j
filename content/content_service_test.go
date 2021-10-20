@@ -4,6 +4,7 @@
 package content
 
 import (
+	"errors"
 	"os"
 	"testing"
 
@@ -541,7 +542,7 @@ func testContentWillBeWritten(t *testing.T, c content) {
 func getDriverAndCheckClean(t *testing.T, assert *assert.Assertions) *cmneo4j.Driver {
 	d := getNeoDriver(assert)
 	cleanDB(d, assert)
-	checkDbClean(d, t)
+	checkDBClean(d, t)
 	return d
 }
 
@@ -709,7 +710,7 @@ func checkContainsRelationship(d *cmneo4j.Driver, cpID string, assert *assert.As
 	return results[0].Count
 }
 
-func checkDbClean(d *cmneo4j.Driver, t *testing.T) {
+func checkDBClean(d *cmneo4j.Driver, t *testing.T) {
 	assert := assert.New(t)
 
 	var result []struct {
