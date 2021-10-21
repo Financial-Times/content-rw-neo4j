@@ -3,6 +3,7 @@ package content
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 
 	cmneo4j "github.com/Financial-Times/cm-neo4j-driver"
@@ -60,7 +61,7 @@ func (cd Service) Read(uuid string, transID string) (interface{}, bool, error) {
 	}
 
 	query := &cmneo4j.Query{
-		Cypher: `MATCH (n:Content {uuid:{uuid}})
+		Cypher: `MATCH (n:Content {uuid: $uuid})
 			OPTIONAL MATCH (sp:Thing)-[rel1:IS_CURATED_FOR]->(n)
 			OPTIONAL MATCH (n)-[rel2:CONTAINS]->(cp:Thing)
 			WITH n,sp,cp
@@ -127,7 +128,7 @@ func (cd Service) Write(thing interface{}, transID string) error {
 	}
 
 	deleteEntityRelationshipsQuery := &cmneo4j.Query{
-		Cypher: `MATCH (t:Thing {uuid:{uuid}})
+		Cypher: `MATCH (t:Thing {uuid: $uuid})
 				OPTIONAL MATCH (c:Thing)-[rel1:IS_CURATED_FOR]->(t)
 				OPTIONAL MATCH (cp:Thing)<-[rel2:CONTAINS]-(t)
 				DELETE rel1, rel2`,
@@ -155,9 +156,9 @@ func (cd Service) Write(thing interface{}, transID string) error {
 		}
 	}
 
-	query := `MERGE (n:Thing {uuid: {uuid}})
-		      set n={allprops}
-		      set n ` + labels
+	query := fmt.Sprintf(`MERGE (n:Thing {uuid: $uuid})
+		      set n=$allprops
+		      set n %s`, labels)
 
 	writeContentQuery := &cmneo4j.Query{
 		Cypher: query,
@@ -176,8 +177,8 @@ func (cd Service) Write(thing interface{}, transID string) error {
 }
 
 func addStoryPackageRelationQuery(articleUUID, packageUUID string) *cmneo4j.Query {
-	query := `MERGE(sp:Thing{uuid:{packageUuid}})
-			MERGE(c:Thing{uuid:{contentUuid}})
+	query := `MERGE(sp:Thing{uuid:$packageUuid})
+			MERGE(c:Thing{uuid:$contentUuid})
 			MERGE(c)<-[rel:IS_CURATED_FOR]-(sp)`
 
 	return &cmneo4j.Query{
@@ -190,8 +191,8 @@ func addStoryPackageRelationQuery(articleUUID, packageUUID string) *cmneo4j.Quer
 }
 
 func addContentPackageRelationQuery(articleUUID, packageUUID string) *cmneo4j.Query {
-	query := `MERGE(cp:Thing{uuid:{packageUuid}})
-			MERGE(c:Thing{uuid:{contentUuid}})
+	query := `MERGE(cp:Thing{uuid:$packageUuid})
+			MERGE(c:Thing{uuid:$contentUuid})
 			MERGE(c)-[rel:CONTAINS]->(cp)`
 
 	return &cmneo4j.Query{
@@ -215,7 +216,7 @@ func (cd Service) Delete(uuid string, transID string) (bool, error) {
 	// Check "content-collection-rw-neo4j" service for the the Content Collection deletion query.
 	clearCollectionNode := &cmneo4j.Query{
 		Cypher: `
-			MATCH (p:ContentPackage {uuid: {uuid}})-[rel:CONTAINS]->(cc:Thing)
+			MATCH (p:ContentPackage {uuid: $uuid})-[rel:CONTAINS]->(cc:Thing)
 			OPTIONAL MATCH (cc)-[rel]-()
 			WITH cc, count(rel) AS relCount
 			WHERE relCount = 1 AND NOT cc:ContentCollection
@@ -228,7 +229,7 @@ func (cd Service) Delete(uuid string, transID string) (bool, error) {
 
 	removeNode := &cmneo4j.Query{
 		Cypher: `
-			MATCH (p:Thing {uuid: {uuid}})
+			MATCH (p:Thing {uuid: $uuid})
 			DETACH DELETE p
 		`,
 		Params: map[string]interface{}{

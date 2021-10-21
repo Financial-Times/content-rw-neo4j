@@ -103,7 +103,7 @@ var shorterContent = content{
 
 var updatedContent = content{
 	UUID:          contentUUID,
-	Title:         "New Ttitle",
+	Title:         "New Title",
 	PublishedDate: "1999-12-12T01:00:00.000Z",
 	Body:          "Doesn't matter",
 }
@@ -329,7 +329,7 @@ func TestWriteCalculateEpocCorrectly(t *testing.T) {
 
 	getEpochQuery := &cmneo4j.Query{
 		Cypher: `
-			MATCH (t:Content {uuid:{uuid}}) RETURN t.publishedDateEpoch
+			MATCH (t:Content {uuid: $uuid}) RETURN t.publishedDateEpoch
 			`,
 		Params: map[string]interface{}{
 			"uuid": standardContent.UUID,
@@ -358,7 +358,7 @@ func TestWritePrefLabelIsAlsoWrittenAndIsEqualToTitle(t *testing.T) {
 
 	getPrefLabelQuery := &cmneo4j.Query{
 		Cypher: `
-				MATCH (t:Content {uuid:{uuid}}) RETURN t.prefLabel
+				MATCH (t:Content {uuid: $uuid}) RETURN t.prefLabel
 				`,
 		Params: map[string]interface{}{
 			"uuid": standardContent.UUID,
@@ -388,7 +388,7 @@ func TestWriteNodeLabelsAreWrittenForContent(t *testing.T) {
 	getNodeLabelsQuery := []*cmneo4j.Query{
 		{
 			Cypher: `
-				MATCH (t:Content {uuid:{uuid}}) RETURN labels(t)
+				MATCH (t:Content {uuid: $uuid}) RETURN labels(t)
 				`,
 			Params: map[string]interface{}{
 				"uuid": standardContent.UUID,
@@ -420,7 +420,7 @@ func TestWriteNodeLabelsAreWrittenForContentPackage(t *testing.T) {
 
 	getNodeLabelsQuery := &cmneo4j.Query{
 		Cypher: `
-				MATCH (t:Content {uuid:{uuid}}) RETURN labels(t)
+				MATCH (t:Content {uuid: $uuid}) RETURN labels(t)
 				`,
 		Params: map[string]interface{}{
 			"uuid": standardContent.UUID,
@@ -451,7 +451,7 @@ func TestWriteNodeLabelsAreWrittenForGenericContentPackage(t *testing.T) {
 	}
 	getNodeLabelsQuery := &cmneo4j.Query{
 		Cypher: `
-				MATCH (t:Content {uuid:{uuid}}) RETURN labels(t)
+				MATCH (t:Content {uuid: $uuid}) RETURN labels(t)
 				`,
 		Params: map[string]interface{}{
 			"uuid": genericContentPackage.UUID,
@@ -578,7 +578,7 @@ func cleanDB(d *cmneo4j.Driver, assert *assert.Assertions) {
 	qs := []*cmneo4j.Query{}
 	for _, uuid := range uuids {
 		qs = append(qs, &cmneo4j.Query{
-			Cypher: `MATCH (t:Thing {uuid:{uuid}}) DETACH DELETE t`,
+			Cypher: `MATCH (t:Thing {uuid: $uuid}) DETACH DELETE t`,
 			Params: map[string]interface{}{
 				"uuid": uuid,
 			},
@@ -591,7 +591,7 @@ func cleanDB(d *cmneo4j.Driver, assert *assert.Assertions) {
 
 func writeContentPackageContainsRelation(d *cmneo4j.Driver, cpUUID string, UUID string, assert *assert.Assertions) {
 	writeRelation := `
-	MATCH (cp:ContentPackage {uuid:{cpUUID}}), (t {uuid:{UUID}})
+	MATCH (cp:ContentPackage {uuid: $cpUUID}), (t {uuid:$UUID})
 	CREATE (cp)-[pred:CONTAINS]->(t)
 	`
 
@@ -610,7 +610,7 @@ func writeContentPackageContainsRelation(d *cmneo4j.Driver, cpUUID string, UUID 
 }
 
 func writeNodeWithLabels(d *cmneo4j.Driver, UUID string, labels string, assert *assert.Assertions) {
-	writeThingWithLabelsQuery := `CREATE (n:` + labels + `{uuid: {uuid}})`
+	writeThingWithLabelsQuery := `CREATE (n:` + labels + `{uuid: $uuid})`
 
 	qs := []*cmneo4j.Query{
 		{
@@ -627,7 +627,7 @@ func writeNodeWithLabels(d *cmneo4j.Driver, UUID string, labels string, assert *
 
 func writeRelationship(d *cmneo4j.Driver, contentID string, conceptID string, assert *assert.Assertions) {
 	annotateQuery := `
-		MERGE (content:Thing{uuid:{contentId}})
+		MERGE (content:Thing{uuid:$contentId})
 		MERGE (concept:Thing) ON CREATE SET concept.uuid = {conceptId}
 		MERGE (content)-[pred:SOME_PPREDICATE]->(concept)
 		`
@@ -652,7 +652,7 @@ func doesThingExist(uuid string, d *cmneo4j.Driver) (bool, error) {
 	}
 	query := &cmneo4j.Query{
 		Cypher: `
-			MATCH (t:Thing {uuid:{uuid}})
+			MATCH (t:Thing {uuid: $uuid})
 			RETURN t.uuid as uuid`,
 		Params: map[string]interface{}{
 			"uuid": uuid,
@@ -668,7 +668,7 @@ func doesThingExist(uuid string, d *cmneo4j.Driver) (bool, error) {
 
 func checkIsCuratedForRelationship(d *cmneo4j.Driver, spID string, assert *assert.Assertions) int {
 	countQuery := `
-		MATCH (t:Thing{uuid:{storyPackageId}})-[r:IS_CURATED_FOR]->(x)
+		MATCH (t:Thing{uuid:$storyPackageId})-[r:IS_CURATED_FOR]->(x)
 		RETURN count(r) as c`
 
 	var results []struct {
@@ -691,7 +691,7 @@ func checkIsCuratedForRelationship(d *cmneo4j.Driver, spID string, assert *asser
 
 func checkContainsRelationship(d *cmneo4j.Driver, cpID string, assert *assert.Assertions) int {
 	countQuery := `
-		MATCH (t:Thing{uuid:{contentPackageId}})<-[r:CONTAINS]-(x)
+		MATCH (t:Thing{uuid:$contentPackageId})<-[r:CONTAINS]-(x)
 		RETURN count(r) as c`
 
 	var results []struct {
@@ -719,7 +719,7 @@ func checkDBClean(d *cmneo4j.Driver, t *testing.T) {
 
 	checkGraph := &cmneo4j.Query{
 		Cypher: `
-			MATCH (t:Thing) WHERE t.uuid in {uuids}
+			MATCH (t:Thing) WHERE t.uuid in $uuids
 			RETURN t.uuid
 		`,
 		Params: map[string]interface{}{
