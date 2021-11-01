@@ -79,7 +79,7 @@ func (cd Service) Read(uuid string, transID string) (interface{}, bool, error) {
 	err := cd.driver.Read(query)
 
 	if errors.Is(err, cmneo4j.ErrNoResultsFound) {
-		return content{}, false, err
+		return content{}, false, nil
 	}
 
 	if err != nil {

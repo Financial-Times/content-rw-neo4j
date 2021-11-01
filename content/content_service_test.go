@@ -124,11 +124,7 @@ func TestDeleteWithNoRelsIsDeleted(t *testing.T) {
 
 	assert.Equal(content{}, c, "Found content %s who should have been deleted", c)
 	assert.False(deleted, "Found content for uuid %s who should have been deleted", standardContent.UUID)
-	if errors.Is(err, cmneo4j.ErrNoResultsFound) {
-		assert.Empty(c)
-	} else {
-		assert.NoError(err, "Error trying to find content for uuid %s", standardContent.UUID)
-	}
+	assert.NoError(err, "Error trying to find content for uuid %s", standardContent.UUID)
 }
 
 func TestDeleteWithRelsIsDeleted(t *testing.T) {
@@ -148,11 +144,7 @@ func TestDeleteWithRelsIsDeleted(t *testing.T) {
 
 	assert.Equal(content{}, c, "Found content %s who should have been deleted", c)
 	assert.False(found, "Found content for uuid %s who should have been deleted", standardContent.UUID)
-	if errors.Is(err, cmneo4j.ErrNoResultsFound) {
-		assert.Empty(c)
-	} else {
-		assert.NoError(err, "Error trying to find content for uuid %s", standardContent.UUID)
-	}
+	assert.NoError(err, "Error trying to find content for uuid %s", standardContent.UUID)
 
 	exists, err := doesThingExist(standardContent.UUID, d)
 	assert.NoError(err)
@@ -177,12 +169,7 @@ func TestDeleteContentPackageIsDeletedAttachedContentCollectionRemains(t *testin
 
 	assert.Equal(content{}, c, "Found Content Package %contentService who should have been deleted", c)
 	assert.False(found, "Found Content Package for uuid %contentService who should have been deleted", genericContentPackage.UUID)
-
-	if errors.Is(err, cmneo4j.ErrNoResultsFound) {
-		assert.Empty(c)
-	} else {
-		assert.NoError(err, "Error trying to find Content Package for uuid %s", genericContentPackage.UUID)
-	}
+	assert.NoError(err, "Error trying to find Content Package for uuid %s", genericContentPackage.UUID)
 
 	exists, err := doesThingExist(genericContentPackage.UUID, d)
 	assert.NoError(err)
@@ -211,11 +198,7 @@ func TestDeleteContentPackageIsDeletedAttachedNodeIsAlsoDeleted(t *testing.T) {
 
 	assert.Equal(content{}, c, "Found Content Package %contentService who should have been deleted", c)
 	assert.False(found, "Found Content Package for uuid %contentService who should have been deleted", genericContentPackage.UUID)
-	if errors.Is(err, cmneo4j.ErrNoResultsFound) {
-		assert.Empty(c)
-	} else {
-		assert.NoError(err, "Error trying to find Content Package for uuid %contentService", genericContentPackage.UUID)
-	}
+	assert.NoError(err, "Error trying to find Content Package for uuid %contentService", genericContentPackage.UUID)
 
 	exists, err := doesThingExist(genericContentPackage.UUID, d)
 	assert.NoError(err)
