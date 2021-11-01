@@ -26,6 +26,7 @@ require (
 )
 
 require (
+	github.com/Financial-Times/neo-model-utils-go v1.0.0 // indirect
 	github.com/Financial-Times/neo-utils-go v0.0.0-20180807105745-1fe6ae2f38f3 // indirect
 	github.com/Financial-Times/transactionid-utils-go v1.0.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect

@@ -6,15 +6,6 @@ orbs:
 jobs:
   dredd:
     working_directory: /go/src/github.com/Financial-Times/content-rw-neo4j
-    parameters:
-      github-username:
-        description: username of user with access to private github repositories
-        type: env_var_name
-        default: GITHUB_USERNAME
-      github-token:
-        description: token for the user with access to private github repositories
-        type: env_var_name
-        default: GITHUB_TOKEN
     docker:
     - image: golang:1
       environment:

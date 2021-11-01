@@ -10,6 +10,7 @@ import (
 
 	cmneo4j "github.com/Financial-Times/cm-neo4j-driver"
 	"github.com/Financial-Times/go-logger/v2"
+	"github.com/Financial-Times/neo-model-utils-go/mapper"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -382,9 +383,14 @@ func TestWriteNodeLabelsAreWrittenForContent(t *testing.T) {
 
 	err = d.Write(getNodeLabelsQuery...)
 	assert.NoError(err)
-	assert.Len(result[0].NodeLabels, 2, "There should be 2 node labels: Thing, Content")
-	assert.Equal("Thing", result[0].NodeLabels[0], "Thing should be the parent label")
-	assert.Equal("Content", result[0].NodeLabels[1], "Content should be the child label")
+
+	nodeLabels, err := mapper.SortTypes(result[0].NodeLabels)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	assert.Len(nodeLabels, 2, "There should be 2 node labels: Thing, Content")
+	assert.Equal("Thing", nodeLabels[0], "Thing should be the parent label")
+	assert.Equal("Content", nodeLabels[1], "Content should be the child label")
 }
 
 func TestWriteNodeLabelsAreWrittenForContentPackage(t *testing.T) {
@@ -413,10 +419,14 @@ func TestWriteNodeLabelsAreWrittenForContentPackage(t *testing.T) {
 
 	err = d.Write(getNodeLabelsQuery)
 	assert.NoError(err)
-	assert.Len(result[0].NodeLabels, 3, "There should be 3 node labels: Thing, Content, ContentPackage")
-	assert.Equal("Thing", result[0].NodeLabels[0], "Thing should be the grandparent label")
-	assert.Equal("Content", result[0].NodeLabels[1], "Content should be the parent label")
-	assert.Equal("ContentPackage", result[0].NodeLabels[2], "ContentPackage should be the child label")
+	nodeLabels, err := mapper.SortTypes(result[0].NodeLabels)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	assert.Len(nodeLabels, 3, "There should be 3 node labels: Thing, Content, ContentPackage")
+	assert.Equal("Thing", nodeLabels[0], "Thing should be the grandparent label")
+	assert.Equal("Content", nodeLabels[1], "Content should be the parent label")
+	assert.Equal("ContentPackage", nodeLabels[2], "ContentPackage should be the child label")
 }
 
 func TestWriteNodeLabelsAreWrittenForGenericContentPackage(t *testing.T) {
@@ -444,10 +454,14 @@ func TestWriteNodeLabelsAreWrittenForGenericContentPackage(t *testing.T) {
 
 	err = d.Write(getNodeLabelsQuery)
 	assert.NoError(err)
-	assert.Len(result[0].NodeLabels, 3, "There should be 3 node labels: Thing, Content, ContentPackage")
-	assert.Equal("Thing", result[0].NodeLabels[0], "Thing should be the grandparent label")
-	assert.Equal("Content", result[0].NodeLabels[1], "Content should be the parent label")
-	assert.Equal("ContentPackage", result[0].NodeLabels[2], "ContentPackage should be the child label")
+	nodeLabels, err := mapper.SortTypes(result[0].NodeLabels)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	assert.Len(nodeLabels, 3, "There should be 3 node labels: Thing, Content, ContentPackage")
+	assert.Equal("Thing", nodeLabels[0], "Thing should be the grandparent label")
+	assert.Equal("Content", nodeLabels[1], "Content should be the parent label")
+	assert.Equal("ContentPackage", nodeLabels[2], "ContentPackage should be the child label")
 }
 
 func TestContentWontBeWrittenIfNoBody(t *testing.T) {
@@ -611,8 +625,8 @@ func writeNodeWithLabels(d *cmneo4j.Driver, UUID string, labels string, assert *
 func writeRelationship(d *cmneo4j.Driver, contentID string, conceptID string, assert *assert.Assertions) {
 	annotateQuery := `
 		MERGE (content:Thing{uuid:$contentId})
-		MERGE (concept:Thing) ON CREATE SET concept.uuid = {conceptId}
-		MERGE (content)-[pred:SOME_PPREDICATE]->(concept)
+		MERGE (concept:Thing) ON CREATE SET concept.uuid = $conceptId
+		MERGE (content)-[pred:SOME_PREDICATE]->(concept)
 		`
 
 	qs := []*cmneo4j.Query{
