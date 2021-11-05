@@ -63,6 +63,13 @@ func main() {
 		EnvVar: "BATCH_SIZE",
 	})
 
+	dbDriverLogLevel := app.String(cli.StringOpt{
+		Name:   "dbDriverLogLevel",
+		Value:  "WARN",
+		Desc:   "Db's driver logging level (DEBUG, INFO, WARN, ERROR)",
+		EnvVar: "DB_DRIVER_LOG_LEVEL",
+	})
+
 	log := logger.NewUPPInfoLogger(*appName)
 	log.WithFields(map[string]interface{}{
 		"appName":       *appName,
@@ -74,8 +81,9 @@ func main() {
 
 	app.Action = func() {
 		log.Infof("Application started with args %s", os.Args)
+		dbLog := logger.NewUPPLogger(*appName+"-cmneo4j-driver", *dbDriverLogLevel)
 
-		driver, err := cmneo4j.NewDefaultDriver(*neoURL, log)
+		driver, err := cmneo4j.NewDefaultDriver(*neoURL, dbLog)
 		if err != nil {
 			log.WithError(err).Fatal("Could not create a new instance of cmneo4j driver")
 		}
