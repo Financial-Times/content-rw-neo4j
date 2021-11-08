@@ -1,14 +1,16 @@
+//go:build integration
 // +build integration
 
 package content
 
 import (
+	"errors"
 	"os"
 	"testing"
 
-	"github.com/Financial-Times/go-logger"
-	"github.com/Financial-Times/neo-utils-go/neoutils"
-	"github.com/jmcvetta/neoism"
+	cmneo4j "github.com/Financial-Times/cm-neo4j-driver"
+	"github.com/Financial-Times/go-logger/v2"
+	"github.com/Financial-Times/neo-model-utils-go/mapper"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -102,28 +104,24 @@ var shorterContent = content{
 
 var updatedContent = content{
 	UUID:          contentUUID,
-	Title:         "New Ttitle",
+	Title:         "New Title",
 	PublishedDate: "1999-12-12T01:00:00.000Z",
 	Body:          "Doesn't matter",
 }
 
-func init() {
-	logger.InitDefaultLogger("content-rw-neo4j")
-}
-
 func TestDeleteWithNoRelsIsDeleted(t *testing.T) {
 	assert := assert.New(t)
-	db := getDatabaseConnectionAndCheckClean(t, assert)
-	contentDriver := getCypherDriver(db)
-	defer cleanDB(db, t, assert)
+	d := getDriverAndCheckClean(t, assert)
+	contentService := getContentService(d)
+	defer cleanDB(d, assert)
 
-	assert.NoError(contentDriver.Write(shorterContent, "TEST_TRANS_ID"), "Failed to write content")
+	assert.NoError(contentService.Write(shorterContent, "TEST_TRANS_ID"), "Failed to write content")
 
-	deleted, err := contentDriver.Delete(shorterContent.UUID, "TEST_TRANS_ID")
+	deleted, err := contentService.Delete(shorterContent.UUID, "TEST_TRANS_ID")
 	assert.True(deleted, "Didn't manage to delete content for uuid %s", shorterContent.UUID)
 	assert.NoError(err, "Error deleting content for uuid %s", shorterContent.UUID)
 
-	c, deleted, err := contentDriver.Read(shorterContent.UUID, "TEST_TRANS_ID")
+	c, deleted, err := contentService.Read(shorterContent.UUID, "TEST_TRANS_ID")
 
 	assert.Equal(content{}, c, "Found content %s who should have been deleted", c)
 	assert.False(deleted, "Found content for uuid %s who should have been deleted", standardContent.UUID)
@@ -132,82 +130,82 @@ func TestDeleteWithNoRelsIsDeleted(t *testing.T) {
 
 func TestDeleteWithRelsIsDeleted(t *testing.T) {
 	assert := assert.New(t)
-	db := getDatabaseConnectionAndCheckClean(t, assert)
-	contentDriver := getCypherDriver(db)
-	defer cleanDB(db, t, assert)
+	d := getDriverAndCheckClean(t, assert)
+	s := getContentService(d)
+	defer cleanDB(d, assert)
 
-	assert.NoError(contentDriver.Write(standardContent, "TEST_TRANS_ID"), "Failed to write content")
-	writeRelationship(db, standardContent.UUID, conceptUUID, t, assert)
+	assert.NoError(s.Write(standardContent, "TEST_TRANS_ID"), "Failed to write content")
+	writeRelationship(d, standardContent.UUID, conceptUUID, assert)
 
-	deleted, err := contentDriver.Delete(standardContent.UUID, "TEST_TRANS_ID")
+	deleted, err := s.Delete(standardContent.UUID, "TEST_TRANS_ID")
 	assert.NoError(err, "Error deleting content for uuid %s", standardContent.UUID)
 	assert.True(deleted, "Didn't manage to delete content for uuid %s", standardContent.UUID)
 
-	c, found, err := contentDriver.Read(standardContent.UUID, "TEST_TRANS_ID")
+	c, found, err := s.Read(standardContent.UUID, "TEST_TRANS_ID")
 
 	assert.Equal(content{}, c, "Found content %s who should have been deleted", c)
 	assert.False(found, "Found content for uuid %s who should have been deleted", standardContent.UUID)
 	assert.NoError(err, "Error trying to find content for uuid %s", standardContent.UUID)
 
-	exists, err := doesThingExist(standardContent.UUID, db)
+	exists, err := doesThingExist(standardContent.UUID, d)
 	assert.NoError(err)
 	assert.False(exists, "Thing should not exist for deleted content with relations")
 }
 
 func TestDeleteContentPackageIsDeletedAttachedContentCollectionRemains(t *testing.T) {
 	assert := assert.New(t)
-	db := getDatabaseConnectionAndCheckClean(t, assert)
-	contentDriver := getCypherDriver(db)
-	defer cleanDB(db, t, assert)
+	d := getDriverAndCheckClean(t, assert)
+	contentService := getContentService(d)
+	defer cleanDB(d, assert)
 
-	assert.NoError(contentDriver.Write(genericContentPackage, "TEST_TRANS_ID"), "Failed to write content package")
-	writeNodeWithLabels(db, contentCollectionUUID, "Thing:Content:ContentCollection", t, assert)
-	writeContentPackageContainsRelation(db, genericContentPackage.UUID, contentCollectionUUID, t, assert)
+	assert.NoError(contentService.Write(genericContentPackage, "TEST_TRANS_ID"), "Failed to write content package")
+	writeNodeWithLabels(d, contentCollectionUUID, "Thing:Content:ContentCollection", assert)
+	writeContentPackageContainsRelation(d, genericContentPackage.UUID, contentCollectionUUID, assert)
 
-	deleted, err := contentDriver.Delete(genericContentPackage.UUID, "TEST_TRANS_ID")
-	assert.NoError(err, "Error deleting Content Package for uuid %s", genericContentPackage.UUID)
-	assert.True(deleted, "Didn't manage to delete Content Package for uuid %s", genericContentPackage.UUID)
+	deleted, err := contentService.Delete(genericContentPackage.UUID, "TEST_TRANS_ID")
+	assert.NoError(err, "Error deleting Content Package for uuid %contentService", genericContentPackage.UUID)
+	assert.True(deleted, "Didn't manage to delete Content Package for uuid %contentService", genericContentPackage.UUID)
 
-	c, found, err := contentDriver.Read(genericContentPackage.UUID, "TEST_TRANS_ID")
+	c, found, err := contentService.Read(genericContentPackage.UUID, "TEST_TRANS_ID")
 
-	assert.Equal(content{}, c, "Found Content Package %s who should have been deleted", c)
-	assert.False(found, "Found Content Package for uuid %s who should have been deleted", genericContentPackage.UUID)
+	assert.Equal(content{}, c, "Found Content Package %contentService who should have been deleted", c)
+	assert.False(found, "Found Content Package for uuid %contentService who should have been deleted", genericContentPackage.UUID)
 	assert.NoError(err, "Error trying to find Content Package for uuid %s", genericContentPackage.UUID)
 
-	exists, err := doesThingExist(genericContentPackage.UUID, db)
+	exists, err := doesThingExist(genericContentPackage.UUID, d)
 	assert.NoError(err)
 	assert.False(exists, "Thing should not exist for deleted Content Package")
 
-	existsCC, err := doesThingExist(contentCollectionUUID, db)
+	existsCC, err := doesThingExist(contentCollectionUUID, d)
 	assert.NoError(err)
 	assert.True(existsCC, "Content Collection should exist")
 }
 
 func TestDeleteContentPackageIsDeletedAttachedNodeIsAlsoDeleted(t *testing.T) {
 	assert := assert.New(t)
-	db := getDatabaseConnectionAndCheckClean(t, assert)
-	contentDriver := getCypherDriver(db)
-	defer cleanDB(db, t, assert)
+	d := getDriverAndCheckClean(t, assert)
+	contentService := getContentService(d)
+	defer cleanDB(d, assert)
 
-	assert.NoError(contentDriver.Write(genericContentPackage, "TEST_TRANS_ID"), "Failed to write content package")
-	writeNodeWithLabels(db, thingUUID, "Thing", t, assert)
-	writeContentPackageContainsRelation(db, genericContentPackage.UUID, thingUUID, t, assert)
+	assert.NoError(contentService.Write(genericContentPackage, "TEST_TRANS_ID"), "Failed to write content package")
+	writeNodeWithLabels(d, thingUUID, "Thing", assert)
+	writeContentPackageContainsRelation(d, genericContentPackage.UUID, thingUUID, assert)
 
-	deleted, err := contentDriver.Delete(genericContentPackage.UUID, "TEST_TRANS_ID")
-	assert.NoError(err, "Error deleting Content Package for uuid %s", genericContentPackage.UUID)
-	assert.True(deleted, "Didn't manage to delete Content Package for uuid %s", genericContentPackage.UUID)
+	deleted, err := contentService.Delete(genericContentPackage.UUID, "TEST_TRANS_ID")
+	assert.NoError(err, "Error deleting Content Package for uuid %contentService", genericContentPackage.UUID)
+	assert.True(deleted, "Didn't manage to delete Content Package for uuid %contentService", genericContentPackage.UUID)
 
-	c, found, err := contentDriver.Read(genericContentPackage.UUID, "TEST_TRANS_ID")
+	c, found, err := contentService.Read(genericContentPackage.UUID, "TEST_TRANS_ID")
 
-	assert.Equal(content{}, c, "Found Content Package %s who should have been deleted", c)
-	assert.False(found, "Found Content Package for uuid %s who should have been deleted", genericContentPackage.UUID)
-	assert.NoError(err, "Error trying to find Content Package for uuid %s", genericContentPackage.UUID)
+	assert.Equal(content{}, c, "Found Content Package %contentService who should have been deleted", c)
+	assert.False(found, "Found Content Package for uuid %contentService who should have been deleted", genericContentPackage.UUID)
+	assert.NoError(err, "Error trying to find Content Package for uuid %contentService", genericContentPackage.UUID)
 
-	exists, err := doesThingExist(genericContentPackage.UUID, db)
+	exists, err := doesThingExist(genericContentPackage.UUID, d)
 	assert.NoError(err)
 	assert.False(exists, "Thing should not exist for deleted Content Package")
 
-	existsThing, err := doesThingExist(thingUUID, db)
+	existsThing, err := doesThingExist(thingUUID, d)
 	assert.NoError(err)
 	assert.False(existsThing, "Thing related to deleted Content Package should not exist")
 }
@@ -215,9 +213,9 @@ func TestDeleteContentPackageIsDeletedAttachedNodeIsAlsoDeleted(t *testing.T) {
 func TestCreateAllValuesPresent(t *testing.T) {
 	assert := assert.New(t)
 
-	db := getDatabaseConnectionAndCheckClean(t, assert)
-	contentDriver := getCypherDriver(db)
-	defer cleanDB(db, t, assert)
+	d := getDriverAndCheckClean(t, assert)
+	contentDriver := getContentService(d)
+	defer cleanDB(d, assert)
 
 	assert.NoError(contentDriver.Write(standardContent, "TEST_TRANS_ID"), "Failed to write content")
 
@@ -237,9 +235,9 @@ func TestCreateAllValuesPresent(t *testing.T) {
 func TestCreateNotAllValuesPresent(t *testing.T) {
 	assert := assert.New(t)
 
-	db := getDatabaseConnectionAndCheckClean(t, assert)
-	contentDriver := getCypherDriver(db)
-	defer cleanDB(db, t, assert)
+	d := getDriverAndCheckClean(t, assert)
+	contentDriver := getContentService(d)
+	defer cleanDB(d, assert)
 
 	assert.NoError(contentDriver.Write(shorterContent, "TEST_TRANS_ID"), "Failed to write content")
 
@@ -252,9 +250,9 @@ func TestCreateNotAllValuesPresent(t *testing.T) {
 
 func TestWillUpdateProperties(t *testing.T) {
 	assert := assert.New(t)
-	db := getDatabaseConnectionAndCheckClean(t, assert)
-	contentDriver := getCypherDriver(db)
-	defer cleanDB(db, t, assert)
+	d := getDriverAndCheckClean(t, assert)
+	contentDriver := getContentService(d)
+	defer cleanDB(d, assert)
 
 	assert.NoError(contentDriver.Write(standardContent, "TEST_TRANS_ID"), "Failed to write content")
 	storedContent, _, err := contentDriver.Read(contentUUID, "TEST_TRANS_ID")
@@ -273,9 +271,9 @@ func TestWillUpdateProperties(t *testing.T) {
 
 func TestUpdateWillRemovePropertiesNoLongerPresent(t *testing.T) {
 	assert := assert.New(t)
-	db := getDatabaseConnectionAndCheckClean(t, assert)
-	contentDriver := getCypherDriver(db)
-	defer cleanDB(db, t, assert)
+	d := getDriverAndCheckClean(t, assert)
+	contentDriver := getContentService(d)
+	defer cleanDB(d, assert)
 
 	assert.NoError(contentDriver.Write(standardContentPackage, "TEST_TRANS_ID"), "Failed to write content")
 	storedContent, _, err := contentDriver.Read(contentUUID, "TEST_TRANS_ID")
@@ -283,8 +281,8 @@ func TestUpdateWillRemovePropertiesNoLongerPresent(t *testing.T) {
 	assert.NoError(err)
 	assert.NotEmpty(storedContent.(content).Title)
 	assert.NotEmpty(storedContent.(content).PublishedDate)
-	assert.Equal(1, checkIsCuratedForRelationship(db, storyPackageUUID, assert), "incorrect number of isCuratedFor relationships")
-	assert.Equal(1, checkContainsRelationship(db, contentPackageUUID, assert), "incorrect number of contains relationships")
+	assert.Equal(1, checkIsCuratedForRelationship(d, storyPackageUUID, assert), "incorrect number of isCuratedFor relationships")
+	assert.Equal(1, checkContainsRelationship(d, contentPackageUUID, assert), "incorrect number of contains relationships")
 
 	assert.NoError(contentDriver.Write(shorterContent, "TEST_TRANS_ID"), "Failed to write updated content")
 	storedContent, _, err = contentDriver.Read(contentUUID, "TEST_TRANS_ID")
@@ -293,37 +291,37 @@ func TestUpdateWillRemovePropertiesNoLongerPresent(t *testing.T) {
 	assert.NotEmpty(storedContent, "Failed to rеtriеve updated content")
 	assert.Empty(storedContent.(content).Title, "Update should have removed Title but it is still present")
 	assert.Empty(storedContent.(content).PublishedDate, "Update should have removed PublishedDate but it is still present")
-	assert.Equal(0, checkIsCuratedForRelationship(db, storyPackageUUID, assert), "incorrect number of isCuratedFor relationships")
-	assert.Equal(0, checkContainsRelationship(db, contentPackageUUID, assert), "incorrect number of contains relationships")
+	assert.Equal(0, checkIsCuratedForRelationship(d, storyPackageUUID, assert), "incorrect number of isCuratedFor relationships")
+	assert.Equal(0, checkContainsRelationship(d, contentPackageUUID, assert), "incorrect number of contains relationships")
 }
 
 func TestWriteCalculateEpocCorrectly(t *testing.T) {
 	assert := assert.New(t)
 
-	db := getDatabaseConnectionAndCheckClean(t, assert)
-	contentDriver := getCypherDriver(db)
-	defer cleanDB(db, t, assert)
+	d := getDriverAndCheckClean(t, assert)
+	contentService := getContentService(d)
+	defer cleanDB(d, assert)
 
 	uuid := standardContent.UUID
 	contentReceived := content{UUID: uuid, Title: "TestContent", PublishedDate: "1970-01-01T01:00:00.000Z", Body: "Some Test text"}
-	err := contentDriver.Write(contentReceived, "TEST_TRANS_ID")
+	err := contentService.Write(contentReceived, "TEST_TRANS_ID")
 	assert.NoError(err)
 
 	var result []struct {
 		PublishedDateEpoc int `json:"t.publishedDateEpoch"`
 	}
 
-	getEpochQuery := &neoism.CypherQuery{
-		Statement: `
-			MATCH (t:Content {uuid:{uuid}}) RETURN t.publishedDateEpoch
+	getEpochQuery := &cmneo4j.Query{
+		Cypher: `
+			MATCH (t:Content {uuid: $uuid}) RETURN t.publishedDateEpoch
 			`,
-		Parameters: neoism.Props{
+		Params: map[string]interface{}{
 			"uuid": standardContent.UUID,
 		},
 		Result: &result,
 	}
 
-	err = contentDriver.conn.CypherBatch([]*neoism.CypherQuery{getEpochQuery})
+	err = d.Write(getEpochQuery)
 	assert.NoError(err)
 	assert.Equal(3600, result[0].PublishedDateEpoc, "Epoc of 1970-01-01T01:00:00.000Z should be 3600")
 }
@@ -331,28 +329,28 @@ func TestWriteCalculateEpocCorrectly(t *testing.T) {
 func TestWritePrefLabelIsAlsoWrittenAndIsEqualToTitle(t *testing.T) {
 	assert := assert.New(t)
 
-	db := getDatabaseConnectionAndCheckClean(t, assert)
-	contentDriver := getCypherDriver(db)
-	defer cleanDB(db, t, assert)
+	d := getDriverAndCheckClean(t, assert)
+	contentService := getContentService(d)
+	defer cleanDB(d, assert)
 
-	err := contentDriver.Write(standardContent, "TEST_TRANS_ID")
+	err := contentService.Write(standardContent, "TEST_TRANS_ID")
 	assert.NoError(err)
 
 	var result []struct {
 		PrefLabel string `json:"t.prefLabel"`
 	}
 
-	getPrefLabelQuery := &neoism.CypherQuery{
-		Statement: `
-				MATCH (t:Content {uuid:{uuid}}) RETURN t.prefLabel
+	getPrefLabelQuery := &cmneo4j.Query{
+		Cypher: `
+				MATCH (t:Content {uuid: $uuid}) RETURN t.prefLabel
 				`,
-		Parameters: neoism.Props{
+		Params: map[string]interface{}{
 			"uuid": standardContent.UUID,
 		},
 		Result: &result,
 	}
 
-	err = contentDriver.conn.CypherBatch([]*neoism.CypherQuery{getPrefLabelQuery})
+	err = d.Write(getPrefLabelQuery)
 	assert.NoError(err)
 	assert.Equal(standardContent.Title, result[0].PrefLabel, "PrefLabel should be 'Content Title'")
 }
@@ -360,122 +358,144 @@ func TestWritePrefLabelIsAlsoWrittenAndIsEqualToTitle(t *testing.T) {
 func TestWriteNodeLabelsAreWrittenForContent(t *testing.T) {
 	assert := assert.New(t)
 
-	db := getDatabaseConnectionAndCheckClean(t, assert)
-	contentDriver := getCypherDriver(db)
-	defer cleanDB(db, t, assert)
+	d := getDriverAndCheckClean(t, assert)
+	contentService := getContentService(d)
+	defer cleanDB(d, assert)
 
-	err := contentDriver.Write(standardContent, "TEST_TRANS_ID")
+	err := contentService.Write(standardContent, "TEST_TRANS_ID")
 	assert.NoError(err)
 
 	var result []struct {
 		NodeLabels []string `json:"labels(t)"`
 	}
 
-	getNodeLabelsQuery := &neoism.CypherQuery{
-		Statement: `
-				MATCH (t:Content {uuid:{uuid}}) RETURN labels(t)
+	getNodeLabelsQuery := []*cmneo4j.Query{
+		{
+			Cypher: `
+				MATCH (t:Content {uuid: $uuid}) RETURN labels(t)
 				`,
-		Parameters: neoism.Props{
-			"uuid": standardContent.UUID,
+			Params: map[string]interface{}{
+				"uuid": standardContent.UUID,
+			},
+			Result: &result,
 		},
-		Result: &result,
 	}
 
-	err = contentDriver.conn.CypherBatch([]*neoism.CypherQuery{getNodeLabelsQuery})
+	err = d.Write(getNodeLabelsQuery...)
 	assert.NoError(err)
-	assert.Len(result[0].NodeLabels, 2, "There should be 2 node labels: Thing, Content")
-	assert.Equal("Thing", result[0].NodeLabels[0], "Thing should be the parent label")
-	assert.Equal("Content", result[0].NodeLabels[1], "Content should be the child label")
+
+	nodeLabels, err := mapper.SortTypes(result[0].NodeLabels)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	assert.Len(nodeLabels, 2, "There should be 2 node labels: Thing, Content")
+	assert.Equal("Thing", nodeLabels[0], "Thing should be the parent label")
+	assert.Equal("Content", nodeLabels[1], "Content should be the child label")
 }
 
 func TestWriteNodeLabelsAreWrittenForContentPackage(t *testing.T) {
 	assert := assert.New(t)
 
-	db := getDatabaseConnectionAndCheckClean(t, assert)
-	contentDriver := getCypherDriver(db)
-	defer cleanDB(db, t, assert)
+	d := getDriverAndCheckClean(t, assert)
+	contentService := getContentService(d)
+	defer cleanDB(d, assert)
 
-	err := contentDriver.Write(standardContentPackage, "TEST_TRANS_ID")
+	err := contentService.Write(standardContentPackage, "TEST_TRANS_ID")
 	assert.NoError(err)
 
 	var result []struct {
 		NodeLabels []string `json:"labels(t)"`
 	}
 
-	getNodeLabelsQuery := &neoism.CypherQuery{
-		Statement: `
-				MATCH (t:Content {uuid:{uuid}}) RETURN labels(t)
+	getNodeLabelsQuery := &cmneo4j.Query{
+		Cypher: `
+				MATCH (t:Content {uuid: $uuid}) RETURN labels(t)
 				`,
-		Parameters: neoism.Props{
+		Params: map[string]interface{}{
 			"uuid": standardContent.UUID,
 		},
 		Result: &result,
 	}
 
-	err = contentDriver.conn.CypherBatch([]*neoism.CypherQuery{getNodeLabelsQuery})
+	err = d.Write(getNodeLabelsQuery)
 	assert.NoError(err)
-	assert.Len(result[0].NodeLabels, 3, "There should be 3 node labels: Thing, Content, ContentPackage")
-	assert.Equal("Thing", result[0].NodeLabels[0], "Thing should be the grandparent label")
-	assert.Equal("Content", result[0].NodeLabels[1], "Content should be the parent label")
-	assert.Equal("ContentPackage", result[0].NodeLabels[2], "ContentPackage should be the child label")
+	nodeLabels, err := mapper.SortTypes(result[0].NodeLabels)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	assert.Len(nodeLabels, 3, "There should be 3 node labels: Thing, Content, ContentPackage")
+	assert.Equal("Thing", nodeLabels[0], "Thing should be the grandparent label")
+	assert.Equal("Content", nodeLabels[1], "Content should be the parent label")
+	assert.Equal("ContentPackage", nodeLabels[2], "ContentPackage should be the child label")
 }
 
 func TestWriteNodeLabelsAreWrittenForGenericContentPackage(t *testing.T) {
 	assert := assert.New(t)
 
-	db := getDatabaseConnectionAndCheckClean(t, assert)
-	contentDriver := getCypherDriver(db)
-	defer cleanDB(db, t, assert)
+	d := getDriverAndCheckClean(t, assert)
+	contentService := getContentService(d)
+	defer cleanDB(d, assert)
 
-	err := contentDriver.Write(genericContentPackage, "TEST_TRANS_ID")
+	err := contentService.Write(genericContentPackage, "TEST_TRANS_ID")
 	assert.NoError(err)
 
 	var result []struct {
 		NodeLabels []string `json:"labels(t)"`
 	}
-	getNodeLabelsQuery := &neoism.CypherQuery{
-		Statement: `
-				MATCH (t:Content {uuid:{uuid}}) RETURN labels(t)
+	getNodeLabelsQuery := &cmneo4j.Query{
+		Cypher: `
+				MATCH (t:Content {uuid: $uuid}) RETURN labels(t)
 				`,
-		Parameters: neoism.Props{
+		Params: map[string]interface{}{
 			"uuid": genericContentPackage.UUID,
 		},
 		Result: &result,
 	}
 
-	err = contentDriver.conn.CypherBatch([]*neoism.CypherQuery{getNodeLabelsQuery})
+	err = d.Write(getNodeLabelsQuery)
 	assert.NoError(err)
-	assert.Len(result[0].NodeLabels, 3, "There should be 3 node labels: Thing, Content, ContentPackage")
-	assert.Equal("Thing", result[0].NodeLabels[0], "Thing should be the grandparent label")
-	assert.Equal("Content", result[0].NodeLabels[1], "Content should be the parent label")
-	assert.Equal("ContentPackage", result[0].NodeLabels[2], "ContentPackage should be the child label")
+	nodeLabels, err := mapper.SortTypes(result[0].NodeLabels)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	assert.Len(nodeLabels, 3, "There should be 3 node labels: Thing, Content, ContentPackage")
+	assert.Equal("Thing", nodeLabels[0], "Thing should be the grandparent label")
+	assert.Equal("Content", nodeLabels[1], "Content should be the parent label")
+	assert.Equal("ContentPackage", nodeLabels[2], "ContentPackage should be the child label")
 }
 
 func TestContentWontBeWrittenIfNoBody(t *testing.T) {
 	assert := assert.New(t)
-	db := getDatabaseConnectionAndCheckClean(t, assert)
-	contentDriver := getCypherDriver(db)
-	defer cleanDB(db, t, assert)
+	d := getDriverAndCheckClean(t, assert)
+	contentService := getContentService(d)
+	defer cleanDB(d, assert)
 
-	err := contentDriver.Write(contentWithoutABody, "TEST_TRANS_ID")
+	err := contentService.Write(contentWithoutABody, "TEST_TRANS_ID")
 	assert.NoError(err, "Failed to write content")
 
-	storedContent, _, err := contentDriver.Read(contentWithoutABody.UUID, "TEST_TRANS_ID")
-
-	assert.NoError(err)
+	storedContent, _, err := contentService.Read(contentWithoutABody.UUID, "TEST_TRANS_ID")
+	if errors.Is(err, cmneo4j.ErrNoResultsFound) {
+		assert.Empty(storedContent)
+	} else {
+		assert.NoError(err)
+	}
 	assert.Equal(content{}, storedContent, "No content should be written when the content has no body")
 }
 
 func TestContentWontBeWrittenIfNoBodyWithInvalidType(t *testing.T) {
 	assert := assert.New(t)
-	db := getDatabaseConnectionAndCheckClean(t, assert)
-	contentDriver := getCypherDriver(db)
-	defer cleanDB(db, t, assert)
+	d := getDriverAndCheckClean(t, assert)
+	contentService := getContentService(d)
+	defer cleanDB(d, assert)
 
-	assert.NoError(contentDriver.Write(contentWithoutABodyWithType, "TEST_TRANS_ID"), "Failed to write content")
-	storedContent, _, err := contentDriver.Read(contentWithoutABodyWithType.UUID, "TEST_TRANS_ID")
+	assert.NoError(contentService.Write(contentWithoutABodyWithType, "TEST_TRANS_ID"), "Failed to write content")
+	storedContent, _, err := contentService.Read(contentWithoutABodyWithType.UUID, "TEST_TRANS_ID")
 
-	assert.NoError(err)
+	if errors.Is(err, cmneo4j.ErrNoResultsFound) {
+		assert.Empty(storedContent)
+	} else {
+		assert.NoError(err)
+	}
 	assert.Equal(content{}, storedContent, "No content should be written when the content has no body")
 }
 
@@ -501,42 +521,40 @@ func TestAudioWillBeWritten(t *testing.T) {
 
 func testContentWillBeWritten(t *testing.T, c content) {
 	assert := assert.New(t)
-	db := getDatabaseConnectionAndCheckClean(t, assert)
-	contentDriver := getCypherDriver(db)
-	defer cleanDB(db, t, assert)
+	d := getDriverAndCheckClean(t, assert)
+	s := getContentService(d)
+	defer cleanDB(d, assert)
 
-	assert.NoError(contentDriver.Write(c, "TEST_TRANS_ID"), "Failed to write content")
+	assert.NoError(s.Write(c, "TEST_TRANS_ID"), "Failed to write content")
 
-	storedContent, _, err := contentDriver.Read(c.UUID, "TEST_TRANS_ID")
+	storedContent, _, err := s.Read(c.UUID, "TEST_TRANS_ID")
 	assert.NoError(err)
-	assert.NotEmpty(storedContent, "Failed to retireve stored content")
+	assert.NotEmpty(storedContent, "Failed to retrieve stored content")
 	actualContent := storedContent.(content)
 
 	assert.Equal(c.UUID, actualContent.UUID, "Failed to match UUID")
 	assert.Equal(c.Title, actualContent.Title, "Failed to match Title")
 }
 
-func getDatabaseConnectionAndCheckClean(t *testing.T, assert *assert.Assertions) neoutils.NeoConnection {
-	db := getDatabaseConnection(assert)
-	cleanDB(db, t, assert)
-	checkDbClean(db, t)
-	return db
+func getDriverAndCheckClean(t *testing.T, assert *assert.Assertions) *cmneo4j.Driver {
+	d := getNeoDriver(assert)
+	cleanDB(d, assert)
+	checkDBClean(d, t)
+	return d
 }
 
-func getDatabaseConnection(assert *assert.Assertions) neoutils.NeoConnection {
+func getNeoDriver(assert *assert.Assertions) *cmneo4j.Driver {
 	url := os.Getenv("NEO4J_TEST_URL")
 	if url == "" {
-		url = "http://localhost:7474/db/data"
+		url = "bolt://localhost:7687"
 	}
-
-	conf := neoutils.DefaultConnectionConfig()
-	conf.Transactional = false
-	db, err := neoutils.Connect(url, conf)
+	log := logger.NewUPPLogger("content-rw-neo4j-test", "PANIC")
+	d, err := cmneo4j.NewDefaultDriver(url, log)
 	assert.NoError(err, "Failed to connect to Neo4j")
-	return db
+	return d
 }
 
-func cleanDB(db neoutils.CypherRunner, t *testing.T, assert *assert.Assertions) {
+func cleanDB(d *cmneo4j.Driver, assert *assert.Assertions) {
 	uuids := []string{
 		contentUUID,
 		conceptUUID,
@@ -554,163 +572,168 @@ func cleanDB(db neoutils.CypherRunner, t *testing.T, assert *assert.Assertions) 
 		audioContentUUID,
 	}
 
-	qs := []*neoism.CypherQuery{}
+	qs := []*cmneo4j.Query{}
 	for _, uuid := range uuids {
-		qs = append(qs, &neoism.CypherQuery{
-			Statement: `MATCH (t:Thing {uuid:{uuid}}) DETACH DELETE t`,
-			Parameters: neoism.Props{
+		qs = append(qs, &cmneo4j.Query{
+			Cypher: `MATCH (t:Thing {uuid: $uuid}) DETACH DELETE t`,
+			Params: map[string]interface{}{
 				"uuid": uuid,
 			},
 		})
 	}
 
-	err := db.CypherBatch(qs)
+	err := d.Write(qs...)
 	assert.NoError(err)
 }
 
-func writeContentPackageContainsRelation(db neoutils.NeoConnection, cpUUID string, UUID string, t *testing.T, assert *assert.Assertions) {
-	var writeRelation string
-	var qs []*neoism.CypherQuery
-
-	writeRelation = `
-	MATCH (cp:ContentPackage {uuid:{cpUUID}}), (t {uuid:{UUID}})
+func writeContentPackageContainsRelation(d *cmneo4j.Driver, cpUUID string, UUID string, assert *assert.Assertions) {
+	writeRelation := `
+	MATCH (cp:ContentPackage {uuid: $cpUUID}), (t {uuid:$UUID})
 	CREATE (cp)-[pred:CONTAINS]->(t)
 	`
 
-	qs = []*neoism.CypherQuery{
+	qs := []*cmneo4j.Query{
 		{
-			Statement:  writeRelation,
-			Parameters: neoism.Props{"cpUUID": cpUUID, "UUID": UUID},
+			Cypher: writeRelation,
+			Params: map[string]interface{}{
+				"cpUUID": cpUUID,
+				"UUID":   UUID,
+			},
 		},
 	}
 
-	err := db.CypherBatch(qs)
+	err := d.Write(qs...)
 	assert.NoError(err)
 }
 
-func writeNodeWithLabels(db neoutils.NeoConnection, UUID string, labels string, t *testing.T, assert *assert.Assertions) {
-	var writeThingWithLabelsQuery string
-	var qs []*neoism.CypherQuery
+func writeNodeWithLabels(d *cmneo4j.Driver, UUID string, labels string, assert *assert.Assertions) {
+	writeThingWithLabelsQuery := `CREATE (n:` + labels + `{uuid: $uuid})`
 
-	writeThingWithLabelsQuery = `CREATE (n:` + labels + `{uuid: {uuid}})`
-
-	qs = []*neoism.CypherQuery{
+	qs := []*cmneo4j.Query{
 		{
-			Statement:  writeThingWithLabelsQuery,
-			Parameters: neoism.Props{"uuid": UUID},
+			Cypher: writeThingWithLabelsQuery,
+			Params: map[string]interface{}{
+				"uuid": UUID,
+			},
 		},
 	}
 
-	err := db.CypherBatch(qs)
+	err := d.Write(qs...)
 	assert.NoError(err)
 }
 
-func writeRelationship(db neoutils.NeoConnection, contentID string, conceptID string, t *testing.T, assert *assert.Assertions) {
-	var annotateQuery string
-	var qs []*neoism.CypherQuery
-
-	annotateQuery = `
-		MERGE (content:Thing{uuid:{contentId}})
-		MERGE (concept:Thing) ON CREATE SET concept.uuid = {conceptId}
-		MERGE (content)-[pred:SOME_PPREDICATE]->(concept)
+func writeRelationship(d *cmneo4j.Driver, contentID string, conceptID string, assert *assert.Assertions) {
+	annotateQuery := `
+		MERGE (content:Thing{uuid:$contentId})
+		MERGE (concept:Thing) ON CREATE SET concept.uuid = $conceptId
+		MERGE (content)-[pred:SOME_PREDICATE]->(concept)
 		`
 
-	qs = []*neoism.CypherQuery{
+	qs := []*cmneo4j.Query{
 		{
-			Statement:  annotateQuery,
-			Parameters: neoism.Props{"contentId": contentID, "conceptId": conceptID},
+			Cypher: annotateQuery,
+			Params: map[string]interface{}{
+				"contentId": contentID,
+				"conceptId": conceptID,
+			},
 		},
 	}
 
-	err := db.CypherBatch(qs)
+	err := d.Write(qs...)
 	assert.NoError(err)
 }
 
-func doesThingExist(uuid string, db neoutils.NeoConnection) (bool, error) {
-
+func doesThingExist(uuid string, d *cmneo4j.Driver) (bool, error) {
 	var result []struct {
 		UUID string `json:"uuid,omitempty"`
 	}
-	query := &neoism.CypherQuery{
-		Statement: `
-			MATCH (t:Thing {uuid:{uuid}})
+	query := &cmneo4j.Query{
+		Cypher: `
+			MATCH (t:Thing {uuid: $uuid})
 			RETURN t.uuid as uuid`,
-		Parameters: neoism.Props{
+		Params: map[string]interface{}{
 			"uuid": uuid,
 		},
 		Result: &result,
 	}
-	err := db.CypherBatch([]*neoism.CypherQuery{query})
-
+	err := d.Write(query)
+	if errors.Is(err, cmneo4j.ErrNoResultsFound) {
+		return false, nil
+	}
 	return len(result) > 0, err
 }
 
-func checkIsCuratedForRelationship(db neoutils.NeoConnection, spID string, assert *assert.Assertions) int {
+func checkIsCuratedForRelationship(d *cmneo4j.Driver, spID string, assert *assert.Assertions) int {
 	countQuery := `
-		MATCH (t:Thing{uuid:{storyPackageId}})-[r:IS_CURATED_FOR]->(x)
+		MATCH (t:Thing{uuid:$storyPackageId})-[r:IS_CURATED_FOR]->(x)
 		RETURN count(r) as c`
 
 	var results []struct {
 		Count int `json:"c"`
 	}
 
-	qs := &neoism.CypherQuery{
-		Statement:  countQuery,
-		Parameters: neoism.Props{"storyPackageId": spID},
-		Result:     &results,
+	qs := &cmneo4j.Query{
+		Cypher: countQuery,
+		Params: map[string]interface{}{
+			"storyPackageId": spID,
+		},
+		Result: &results,
 	}
 
-	err := db.CypherBatch([]*neoism.CypherQuery{qs})
+	err := d.Write(qs)
 	assert.NoError(err)
 
 	return results[0].Count
 }
 
-func checkContainsRelationship(db neoutils.NeoConnection, cpID string, assert *assert.Assertions) int {
+func checkContainsRelationship(d *cmneo4j.Driver, cpID string, assert *assert.Assertions) int {
 	countQuery := `
-		MATCH (t:Thing{uuid:{contentPackageId}})<-[r:CONTAINS]-(x)
+		MATCH (t:Thing{uuid:$contentPackageId})<-[r:CONTAINS]-(x)
 		RETURN count(r) as c`
 
 	var results []struct {
 		Count int `json:"c"`
 	}
 
-	qs := &neoism.CypherQuery{
-		Statement:  countQuery,
-		Parameters: neoism.Props{"contentPackageId": cpID},
-		Result:     &results,
+	qs := &cmneo4j.Query{
+		Cypher: countQuery,
+		Params: map[string]interface{}{"contentPackageId": cpID},
+		Result: &results,
 	}
 
-	err := db.CypherBatch([]*neoism.CypherQuery{qs})
+	err := d.Write(qs)
 	assert.NoError(err)
 
 	return results[0].Count
 }
 
-func checkDbClean(db neoutils.CypherRunner, t *testing.T) {
+func checkDBClean(d *cmneo4j.Driver, t *testing.T) {
 	assert := assert.New(t)
 
 	var result []struct {
 		UUID string `json:"t.uuid"`
 	}
 
-	checkGraph := neoism.CypherQuery{
-		Statement: `
-			MATCH (t:Thing) WHERE t.uuid in {uuids}
+	checkGraph := &cmneo4j.Query{
+		Cypher: `
+			MATCH (t:Thing) WHERE t.uuid in $uuids
 			RETURN t.uuid
 		`,
-		Parameters: neoism.Props{
+		Params: map[string]interface{}{
 			"uuids": []string{standardContent.UUID, conceptUUID},
 		},
 		Result: &result,
 	}
-	err := db.CypherBatch([]*neoism.CypherQuery{&checkGraph})
-	assert.NoError(err)
-	assert.Empty(result)
+	err := d.Write(checkGraph)
+	if errors.Is(err, cmneo4j.ErrNoResultsFound) {
+		assert.Empty(result)
+	} else {
+		assert.NoError(err)
+	}
 }
 
-func getCypherDriver(db neoutils.NeoConnection) service {
-	cr := NewCypherContentService(db)
-	cr.Initialise()
-	return cr
+func getContentService(d *cmneo4j.Driver) Service {
+	cs := NewContentService(d)
+	_ = cs.Initialise()
+	return cs
 }

@@ -10,8 +10,8 @@ jobs:
     - image: golang:1
       environment:
         GOPATH: /go
-        NEO4J_TEST_URL: "http://localhost:7474/db/data/"
-    - image: neo4j:3.4.10-enterprise
+        NEO4J_TEST_URL: "bolt://neo4j:7687"
+    - image: neo4j:3.5.28-enterprise
       environment:
         NEO4J_AUTH: none
         NEO4J_HEAP_MEMORY: 256
@@ -19,6 +19,12 @@ jobs:
         NEO4J_ACCEPT_LICENSE_AGREEMENT: "yes"
     steps:
     - checkout
+    - run:
+        name: Unset ssh instead of https
+        command: git config --global --unset url."ssh://git@github.com".insteadOf
+    - run:
+        name: Set GITHUB_USERNAME and GITHUB_TOKEN
+        command: git config --global url."https://${GITHUB_USERNAME}:${GITHUB_TOKEN}@github.com".insteadOf "https://github.com"
     - run:
         name: Go Build
         command: go build -mod=readonly -v
@@ -28,7 +34,7 @@ jobs:
             curl -sL https://deb.nodesource.com/setup_14.x | bash -
             DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs=14.\*
             npm install -g --unsafe-perm --loglevel warn --user 0 --no-progress dredd@8.0.0
-            rm -rf /var/lib/apt/lists/*       
+            rm -rf /var/lib/apt/lists/*
     - run:
         name: Dredd API Testing
         command: dredd
@@ -39,7 +45,9 @@ workflows:
       - dredd
       - ft-golang-ci/build-and-test:
           name: build-and-test-project
-          executor-name: ft-golang-ci/default-with-neo4j
+          executor-name:
+            name: ft-golang-ci/default-with-neo4j
+            neo4j-image-version: 3.5.28-enterprise
       - ft-golang-ci/docker-build:
           name: build-docker-image
           requires:

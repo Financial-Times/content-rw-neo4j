@@ -24,9 +24,11 @@ Run unit tests only:
 go test -v -race ./...
 ```
 
-Run unit and integration tests:
+To execute the integration tests, you must provide `GITHUB_USERNAME` and
+`GITHUB_TOKEN` because the service depends on internal repositories:
 
 ```shell script
+GITHUB_USERNAME="<user-name>" GITHUB_TOKEN="<personal-access-token>" \
 docker-compose -f docker-compose-tests.yml up -d --build && \
 docker logs -f test-runner && \
 docker-compose -f docker-compose-tests.yml down -v
