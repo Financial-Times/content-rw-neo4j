@@ -97,6 +97,14 @@ var genericContentPackage = content{
 	Type:           "ContentPackage",
 }
 
+var liveBlogPackage = content{
+	UUID:           contentUUID,
+	Title:          "Content Title",
+	PublishedDate:  "1970-01-01T01:00:00.000Z",
+	ContentPackage: genericContentPackageUUID,
+	Type:           "LiveBlogPackage",
+}
+
 var shorterContent = content{
 	UUID: contentUUID,
 	Body: "With No Publish Date and No Title",
@@ -107,6 +115,46 @@ var updatedContent = content{
 	Title:         "New Title",
 	PublishedDate: "1999-12-12T01:00:00.000Z",
 	Body:          "Doesn't matter",
+}
+
+func TestGetContentLabels(t *testing.T) {
+	tests := map[string]struct {
+		Content  content
+		Expected string
+	}{
+		"No body content": {
+			Content:  contentWithoutABody,
+			Expected: ":Content",
+		},
+		"Placeholder": {
+			Content:  contentPlaceholder,
+			Expected: ":Content",
+		},
+		"Live blog": {
+			Content:  liveBlog,
+			Expected: ":Content:Article",
+		},
+		"Content Package": {
+			Content:  standardContentPackage,
+			Expected: ":Content:ContentPackage",
+		},
+		"generic Content Package": {
+			Content:  genericContentPackage,
+			Expected: ":Content:ContentPackage",
+		},
+		"live blog package": {
+			Content:  liveBlogPackage,
+			Expected: ":Content:ContentPackage:LiveBlogPackage",
+		},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			actual := getContentLabels(test.Content)
+			if actual != test.Expected {
+				t.Errorf("expected: '%s', got '%s'", test.Expected, actual)
+			}
+		})
+	}
 }
 
 func TestDeleteWithNoRelsIsDeleted(t *testing.T) {

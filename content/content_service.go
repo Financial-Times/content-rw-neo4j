@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	cmneo4j "github.com/Financial-Times/cm-neo4j-driver"
@@ -139,7 +140,7 @@ func (cd Service) Write(thing interface{}, transID string) error {
 
 	queries := []*cmneo4j.Query{deleteEntityRelationshipsQuery}
 
-	labels := `:Content`
+	labels := getContentLabels(c)
 
 	if c.StoryPackage != "" {
 		addStoryPackageRelationQuery := addStoryPackageRelationQuery(c.UUID, c.StoryPackage)
@@ -149,11 +150,6 @@ func (cd Service) Write(thing interface{}, transID string) error {
 	if c.ContentPackage != "" {
 		addContentPackageRelationQuery := addContentPackageRelationQuery(c.UUID, c.ContentPackage)
 		queries = append(queries, addContentPackageRelationQuery)
-
-		labels = labels + `:ContentPackage`
-		if c.Type == LiveBlogPackage {
-			labels = labels + `:` + LiveBlogPackage
-		}
 	}
 
 	query := fmt.Sprintf(`MERGE (n:Thing {uuid: $uuid})
@@ -286,4 +282,28 @@ func (cd Service) Count() (int, error) {
 	}
 
 	return results[0].Count, nil
+}
+
+func getContentLabels(c content) string {
+	specialTypes := map[string]bool{
+		"Content":        true,
+		"ContentPackage": true,
+		LiveBlogPackage:  true,
+	}
+
+	labels := []string{
+		"Content",
+	}
+
+	if c.Type != "" && !specialTypes[c.Type] {
+		labels = append(labels, c.Type)
+	}
+
+	if c.ContentPackage != "" {
+		labels = append(labels, "ContentPackage")
+		if c.Type == LiveBlogPackage {
+			labels = append(labels, LiveBlogPackage)
+		}
+	}
+	return ":" + strings.Join(labels, ":")
 }
