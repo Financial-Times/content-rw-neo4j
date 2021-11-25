@@ -22,6 +22,7 @@ var contentTypesWithNoBody = map[string]bool{
 	"ContentPackage": true,
 	LiveBlogPackage:  true,
 	LiveBlogPost:     true,
+	"LiveEvent":      true,
 }
 
 type Service struct {

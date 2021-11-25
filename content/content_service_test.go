@@ -29,6 +29,7 @@ const (
 	genericContentPackageUUID    = "27cfe7eb-549d-4d51-9cfd-98ea887a571c"
 	graphicUUID                  = "087b42c2-ac7f-40b9-b112-98b3a7f9cd72"
 	audioContentUUID             = "128cfcf4-c394-4e71-8c65-198a675acf53"
+	liveEventUUID                = "23531906-9f98-45c7-a9db-d05bdb72eeaf"
 )
 
 var contentWithoutABody = content{
@@ -105,6 +106,11 @@ var liveBlogPackage = content{
 	Type:           "LiveBlogPackage",
 }
 
+var liveEventContent = content{
+	UUID: liveEventUUID,
+	Type: "LiveEvent",
+}
+
 var shorterContent = content{
 	UUID: contentUUID,
 	Body: "With No Publish Date and No Title",
@@ -145,6 +151,10 @@ func TestGetContentLabels(t *testing.T) {
 		"live blog package": {
 			Content:  liveBlogPackage,
 			Expected: ":Content:ContentPackage:LiveBlogPackage",
+		},
+		"live event": {
+			Content:  liveEventContent,
+			Expected: ":Content:LiveEvent",
 		},
 	}
 	for name, test := range tests {
@@ -547,6 +557,10 @@ func TestContentWontBeWrittenIfNoBodyWithInvalidType(t *testing.T) {
 	assert.Equal(content{}, storedContent, "No content should be written when the content has no body")
 }
 
+func TestLiveEventWillBeWritten(t *testing.T) {
+	testContentWillBeWritten(t, liveEventContent)
+}
+
 func TestLiveBlogsWillBeWrittenDespiteNoBody(t *testing.T) {
 	testContentWillBeWritten(t, liveBlog)
 }
@@ -618,6 +632,7 @@ func cleanDB(d *cmneo4j.Driver, assert *assert.Assertions) {
 		genericContentPackageUUID,
 		graphicUUID,
 		audioContentUUID,
+		liveEventUUID,
 	}
 
 	qs := []*cmneo4j.Query{}
