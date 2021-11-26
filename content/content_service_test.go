@@ -29,6 +29,7 @@ const (
 	genericContentPackageUUID    = "27cfe7eb-549d-4d51-9cfd-98ea887a571c"
 	graphicUUID                  = "087b42c2-ac7f-40b9-b112-98b3a7f9cd72"
 	audioContentUUID             = "128cfcf4-c394-4e71-8c65-198a675acf53"
+	liveEventUUID                = "23531906-9f98-45c7-a9db-d05bdb72eeaf"
 )
 
 var contentWithoutABody = content{
@@ -97,6 +98,19 @@ var genericContentPackage = content{
 	Type:           "ContentPackage",
 }
 
+var liveBlogPackage = content{
+	UUID:           contentUUID,
+	Title:          "Content Title",
+	PublishedDate:  "1970-01-01T01:00:00.000Z",
+	ContentPackage: genericContentPackageUUID,
+	Type:           "LiveBlogPackage",
+}
+
+var liveEventContent = content{
+	UUID: liveEventUUID,
+	Type: "LiveEvent",
+}
+
 var shorterContent = content{
 	UUID: contentUUID,
 	Body: "With No Publish Date and No Title",
@@ -107,6 +121,50 @@ var updatedContent = content{
 	Title:         "New Title",
 	PublishedDate: "1999-12-12T01:00:00.000Z",
 	Body:          "Doesn't matter",
+}
+
+func TestGetContentLabels(t *testing.T) {
+	tests := map[string]struct {
+		Content  content
+		Expected string
+	}{
+		"No body content": {
+			Content:  contentWithoutABody,
+			Expected: ":Content",
+		},
+		"Placeholder": {
+			Content:  contentPlaceholder,
+			Expected: ":Content",
+		},
+		"Live blog": {
+			Content:  liveBlog,
+			Expected: ":Content:Article",
+		},
+		"Content Package": {
+			Content:  standardContentPackage,
+			Expected: ":Content:ContentPackage",
+		},
+		"generic Content Package": {
+			Content:  genericContentPackage,
+			Expected: ":Content:ContentPackage",
+		},
+		"live blog package": {
+			Content:  liveBlogPackage,
+			Expected: ":Content:ContentPackage:LiveBlogPackage",
+		},
+		"live event": {
+			Content:  liveEventContent,
+			Expected: ":Content:LiveEvent",
+		},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			actual := getContentLabels(test.Content)
+			if actual != test.Expected {
+				t.Errorf("expected: '%s', got '%s'", test.Expected, actual)
+			}
+		})
+	}
 }
 
 func TestDeleteWithNoRelsIsDeleted(t *testing.T) {
@@ -499,6 +557,10 @@ func TestContentWontBeWrittenIfNoBodyWithInvalidType(t *testing.T) {
 	assert.Equal(content{}, storedContent, "No content should be written when the content has no body")
 }
 
+func TestLiveEventWillBeWritten(t *testing.T) {
+	testContentWillBeWritten(t, liveEventContent)
+}
+
 func TestLiveBlogsWillBeWrittenDespiteNoBody(t *testing.T) {
 	testContentWillBeWritten(t, liveBlog)
 }
@@ -570,6 +632,7 @@ func cleanDB(d *cmneo4j.Driver, assert *assert.Assertions) {
 		genericContentPackageUUID,
 		graphicUUID,
 		audioContentUUID,
+		liveEventUUID,
 	}
 
 	qs := []*cmneo4j.Query{}
