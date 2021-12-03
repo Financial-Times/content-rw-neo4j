@@ -6,7 +6,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/Financial-Times/base-ft-rw-app-go/baseftrwapp"
+	"github.com/Financial-Times/base-ft-rw-app-go/v2/baseftrwapp"
 	cmneo4j "github.com/Financial-Times/cm-neo4j-driver"
 	"github.com/Financial-Times/content-rw-neo4j/v3/content"
 	fthealth "github.com/Financial-Times/go-fthealth/v1_1"
