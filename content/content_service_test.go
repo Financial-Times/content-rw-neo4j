@@ -5,12 +5,14 @@ package content
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"testing"
 
 	cmneo4j "github.com/Financial-Times/cm-neo4j-driver"
 	"github.com/Financial-Times/go-logger/v2"
-	"github.com/Financial-Times/neo-model-utils-go/mapper"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -122,6 +124,8 @@ var updatedContent = content{
 	PublishedDate: "1999-12-12T01:00:00.000Z",
 	Body:          "Doesn't matter",
 }
+
+var sortStringSlicesDesc = cmpopts.SortSlices(func(a, b string) bool { return a < b })
 
 func TestGetContentLabels(t *testing.T) {
 	tests := map[string]struct {
@@ -442,13 +446,10 @@ func TestWriteNodeLabelsAreWrittenForContent(t *testing.T) {
 	err = d.Write(getNodeLabelsQuery...)
 	assert.NoError(err)
 
-	nodeLabels, err := mapper.SortTypes(result[0].NodeLabels)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	assert.Len(nodeLabels, 2, "There should be 2 node labels: Thing, Content")
-	assert.Equal("Thing", nodeLabels[0], "Thing should be the parent label")
-	assert.Equal("Content", nodeLabels[1], "Content should be the child label")
+	want := []string{"Thing", "Content"}
+	eq := cmp.Equal(result[0].NodeLabels, want, sortStringSlicesDesc)
+	diff := cmp.Diff(result[0].NodeLabels, want, sortStringSlicesDesc)
+	assert.True(eq, fmt.Sprintf("- got, + want: %s", diff))
 }
 
 func TestWriteNodeLabelsAreWrittenForContentPackage(t *testing.T) {
@@ -477,14 +478,12 @@ func TestWriteNodeLabelsAreWrittenForContentPackage(t *testing.T) {
 
 	err = d.Write(getNodeLabelsQuery)
 	assert.NoError(err)
-	nodeLabels, err := mapper.SortTypes(result[0].NodeLabels)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	assert.Len(nodeLabels, 3, "There should be 3 node labels: Thing, Content, ContentPackage")
-	assert.Equal("Thing", nodeLabels[0], "Thing should be the grandparent label")
-	assert.Equal("Content", nodeLabels[1], "Content should be the parent label")
-	assert.Equal("ContentPackage", nodeLabels[2], "ContentPackage should be the child label")
+
+	want := []string{"Thing", "Content", "ContentPackage"}
+	eq := cmp.Equal(result[0].NodeLabels, want, sortStringSlicesDesc)
+	diff := cmp.Diff(result[0].NodeLabels, want, sortStringSlicesDesc)
+
+	assert.True(eq, fmt.Sprintf("- got, + want: %s", diff))
 }
 
 func TestWriteNodeLabelsAreWrittenForGenericContentPackage(t *testing.T) {
@@ -512,14 +511,12 @@ func TestWriteNodeLabelsAreWrittenForGenericContentPackage(t *testing.T) {
 
 	err = d.Write(getNodeLabelsQuery)
 	assert.NoError(err)
-	nodeLabels, err := mapper.SortTypes(result[0].NodeLabels)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	assert.Len(nodeLabels, 3, "There should be 3 node labels: Thing, Content, ContentPackage")
-	assert.Equal("Thing", nodeLabels[0], "Thing should be the grandparent label")
-	assert.Equal("Content", nodeLabels[1], "Content should be the parent label")
-	assert.Equal("ContentPackage", nodeLabels[2], "ContentPackage should be the child label")
+
+	want := []string{"Thing", "Content", "ContentPackage"}
+	eq := cmp.Equal(result[0].NodeLabels, want, sortStringSlicesDesc)
+	diff := cmp.Diff(result[0].NodeLabels, want, sortStringSlicesDesc)
+
+	assert.True(eq, fmt.Sprintf("- got, + want: %s", diff))
 }
 
 func TestContentWontBeWrittenIfNoBody(t *testing.T) {
