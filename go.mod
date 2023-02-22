@@ -7,7 +7,7 @@ require (
 	github.com/Financial-Times/cm-neo4j-driver v1.1.0
 	github.com/Financial-Times/go-fthealth v0.0.0-20171204124831-1b007e2b37b7
 	github.com/Financial-Times/go-logger/v2 v2.0.1
-	github.com/Financial-Times/neo-model-utils-go v1.0.0
+	github.com/google/go-cmp v0.5.9
 	github.com/jawher/mow.cli v0.0.0-20170430135212-8327d12beb75
 	github.com/stretchr/testify v1.7.0
 )
