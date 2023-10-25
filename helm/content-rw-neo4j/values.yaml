@@ -13,7 +13,7 @@ openPolicyAgentSidecar:
   repository: openpolicyagent/opa
   tag: 0.57.0
   pullPolicy: IfNotPresent
-serviceAccount: eksctl-upp-content-rw-neo4j-serviceaccount
+serviceAccount: eksctl-content-rw-neo4j-serviceaccount
 resources:
   requests:
     memory: 40Mi
