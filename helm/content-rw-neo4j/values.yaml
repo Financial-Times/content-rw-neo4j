@@ -8,6 +8,12 @@ replicaCount: 2
 image:
   repository: coco/content-rw-neo4j
   pullPolicy: IfNotPresent
+openPolicyAgentSidecar:
+  name: open-policy-agent
+  repository: openpolicyagent/opa
+  tag: 0.57.0
+  pullPolicy: IfNotPresent
+serviceAccount: eksctl-upp-content-rw-neo4j-serviceaccount
 resources:
   requests:
     memory: 40Mi

@@ -2,16 +2,19 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
+	"net/http"
 	"os"
 	"time"
+
+	"github.com/Financial-Times/content-rw-neo4j/v3/policy"
+
+	cli "github.com/jawher/mow.cli"
 
 	"github.com/Financial-Times/base-ft-rw-app-go/v2/baseftrwapp"
 	cmneo4j "github.com/Financial-Times/cm-neo4j-driver"
 	"github.com/Financial-Times/content-rw-neo4j/v3/content"
 	fthealth "github.com/Financial-Times/go-fthealth/v1_1"
 	"github.com/Financial-Times/go-logger/v2"
-	cli "github.com/jawher/mow.cli"
 )
 
 const (
@@ -70,6 +73,48 @@ func main() {
 		EnvVar: "DB_DRIVER_LOG_LEVEL",
 	})
 
+	httpClientMaxIdleConns := app.Int(cli.IntOpt{
+		Name:   "httpClientMaxIdleConns",
+		Value:  100,
+		Desc:   "Maximum amount of connections available to the http client.",
+		EnvVar: "HTTP_CLIENT_MAX_IDLE_CONNS",
+	})
+
+	httpClientMaxIdleConnsPerHost := app.Int(cli.IntOpt{
+		Name:   "httpClientMaxIdleConnsPerHost",
+		Value:  10,
+		Desc:   "Maximum amount of idle connections available to the http client per host.",
+		EnvVar: "HTTP_CLIENT_MAX_IDLE_CONNS_PER_HOST",
+	})
+
+	httpClientTimeout := app.Int(cli.IntOpt{
+		Name:   "httpClientTimeout",
+		Value:  10,
+		Desc:   "Timeout used by the http client for each connection, in seconds.",
+		EnvVar: "HTTP_CLIENT_TIMEOUT",
+	})
+
+	httpClientIdleConnTimeout := app.Int(cli.IntOpt{
+		Name:   "httpClientIdleConnTimeout",
+		Value:  15,
+		Desc:   "Timeout used by the http client for idle connection, in seconds.",
+		EnvVar: "HTTP_CLIENT_IDLE_CONN_TIMEOUT",
+	})
+
+	httpClientResponseHeaderTimeout := app.Int(cli.IntOpt{
+		Name:   "httpClientResponseHeaderTimeout",
+		Value:  15,
+		Desc:   "Timeout used by the http client to wait for the server response headers.",
+		EnvVar: "HTTP_CLIENT_RESPONSE_HEADER_TIMEOUT",
+	})
+
+	policyAgentURL := app.String(cli.StringOpt{
+		Name:   "policyAgentURL",
+		Value:  "http://localhost:8181",
+		Desc:   "URL of the policy agent.",
+		EnvVar: "POLICY_AGENT_URL",
+	})
+
 	log := logger.NewUPPInfoLogger(*appName)
 	log.WithFields(map[string]interface{}{
 		"appName":       *appName,
@@ -87,9 +132,30 @@ func main() {
 		if err != nil {
 			log.WithError(err).Fatal("Could not create a new instance of cmneo4j driver")
 		}
-		defer driver.Close()
+		defer func(driver *cmneo4j.Driver) {
+			err = driver.Close()
+			if err != nil {
+				log.WithError(err).Error("could not close the cmneo4j driver instance.")
+			}
+		}(driver)
 
-		contentDriver := content.NewContentService(driver)
+		t := http.DefaultTransport.(*http.Transport).Clone()
+		t.MaxIdleConns = *httpClientMaxIdleConns
+		t.MaxIdleConnsPerHost = *httpClientMaxIdleConnsPerHost
+		t.IdleConnTimeout = time.Duration(*httpClientIdleConnTimeout) * time.Second
+		t.ResponseHeaderTimeout = time.Duration(*httpClientResponseHeaderTimeout) * time.Second
+		t.DisableKeepAlives = false
+		httpClient := &http.Client{
+			Timeout:   time.Duration(*httpClientTimeout) * time.Second,
+			Transport: t,
+		}
+
+		paths := map[string]string{
+			policy.SpecialContentKey: "content_rw_neo4j/special_content",
+		}
+		agent := policy.NewAgent(*policyAgentURL, paths, httpClient, log)
+
+		contentDriver := content.NewContentService(driver, agent, log)
 
 		services := map[string]baseftrwapp.Service{
 			"content": contentDriver,
@@ -100,7 +166,7 @@ func main() {
 			checks = append(checks, makeCheck(service, driver))
 		}
 
-		ymlBytes, err := ioutil.ReadFile(*apiYml)
+		ymlBytes, err := os.ReadFile(*apiYml)
 		if err != nil {
 			ymlBytes = nil // the base-ft-rw-app-go lib will not add the /__api endpoint if OpenAPIData is nil
 		}
@@ -133,11 +199,14 @@ func main() {
 
 func makeCheck(service baseftrwapp.Service, cd *cmneo4j.Driver) fthealth.Check {
 	return fthealth.Check{
-		BusinessImpact:   "Cannot read/write content via this writer",
-		Name:             "Check connectivity to Neo4j",
-		PanicGuide:       "https://runbooks.in.ft.com/upp-content-rw-neo4j",
-		Severity:         1,
-		TechnicalSummary: fmt.Sprintf("Cannot connect to Neo4j instance %s with something written to it", cd),
-		Checker:          func() (string, error) { return "", service.Check() },
+		BusinessImpact: "Cannot read/write content via this writer",
+		Name:           "Check connectivity to Neo4j",
+		PanicGuide:     "https://runbooks.in.ft.com/upp-content-rw-neo4j",
+		Severity:       1,
+		TechnicalSummary: fmt.Sprintf(
+			"Cannot connect to Neo4j instance %s with something written to it",
+			cd,
+		),
+		Checker: func() (string, error) { return "", service.Check() },
 	}
 }

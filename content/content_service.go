@@ -7,6 +7,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Financial-Times/go-logger/v2"
+
+	"github.com/Financial-Times/content-rw-neo4j/v3/policy"
+
 	cmneo4j "github.com/Financial-Times/cm-neo4j-driver"
 )
 
@@ -27,16 +31,20 @@ var contentTypesWithNoBody = map[string]bool{
 
 type Service struct {
 	driver *cmneo4j.Driver
+	agent  *policy.Agent
+	log    *logger.UPPLogger
 }
 
-//NewCypherDriver instantiate driver
-func NewContentService(d *cmneo4j.Driver) Service {
+// NewCypherDriver instantiate driver
+func NewContentService(d *cmneo4j.Driver, a *policy.Agent, l *logger.UPPLogger) Service {
 	return Service{
 		driver: d,
+		agent:  a,
+		log:    l,
 	}
 }
 
-//Initialise ensures constraints on content uuid
+// Initialise ensures constraints on content uuid
 func (cd Service) Initialise() error {
 	err := cd.driver.EnsureConstraints(map[string]string{
 		"Content": "uuid"})
@@ -93,12 +101,23 @@ func (cd Service) Read(uuid string, transID string) (interface{}, bool, error) {
 	return contentItem, true, nil
 }
 
-//Write - Writes a content node
+// Write - Writes a content node
 func (cd Service) Write(thing interface{}, transID string) error {
 	c := thing.(content)
 
 	// Letting through only articles (which have body), live blogs, content packages, graphics, videos and audios (which don't have a body)
 	if c.Body == "" && !contentTypesWithNoBody[c.Type] {
+		return nil
+	}
+
+	decision, err := cd.agent.CheckSpecialContentPolicy(policy.SpecialContentQuery{
+		EditorialDesk: c.EditorialDesk,
+	})
+	if err != nil {
+		return err
+	}
+	if decision.Result.(policy.SpecialContentDecision).IsSpecialContent {
+		cd.log.Infof("Content with ID %s was marked as special content, it would not be persisted.", c.UUID)
 		return nil
 	}
 
@@ -159,7 +178,7 @@ func (cd Service) Write(thing interface{}, transID string) error {
 	}
 
 	queries = append(queries, writeContentQuery)
-	err := cd.driver.Write(queries...)
+	err = cd.driver.Write(queries...)
 	if err != nil {
 		return err
 	}
@@ -194,7 +213,7 @@ func addContentPackageRelationQuery(articleUUID, packageUUID string) *cmneo4j.Qu
 	}
 }
 
-//Delete - Deletes a content item
+// Delete - Deletes a content item
 func (cd Service) Delete(uuid string, transID string) (bool, error) {
 	// "clearCollectionNode" query handles a specific case when
 	// a Content Collection was deleted, which means its contents are removed
