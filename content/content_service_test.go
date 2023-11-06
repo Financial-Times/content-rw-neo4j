@@ -4,16 +4,21 @@
 package content
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"testing"
 
-	cmneo4j "github.com/Financial-Times/cm-neo4j-driver"
-	"github.com/Financial-Times/go-logger/v2"
+	"github.com/Financial-Times/content-rw-neo4j/v3/policy"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/stretchr/testify/assert"
+
+	cmneo4j "github.com/Financial-Times/cm-neo4j-driver"
+	"github.com/Financial-Times/go-logger/v2"
 )
 
 const (
@@ -32,6 +37,22 @@ const (
 	graphicUUID                  = "087b42c2-ac7f-40b9-b112-98b3a7f9cd72"
 	audioContentUUID             = "128cfcf4-c394-4e71-8c65-198a675acf53"
 	liveEventUUID                = "23531906-9f98-45c7-a9db-d05bdb72eeaf"
+	defaultPolicy                = `
+	package content_rw_neo4j.special_content
+	
+	default is_special_content := false
+	`
+	specialContentPolicy = `
+	package content_rw_neo4j.special_content
+
+	import future.keywords.if
+
+	default is_special_content := false
+
+	is_special_content := true if {
+		input.editorialDesk == "/FT/Professional/Central Banking"
+	}
+	`
 )
 
 var contentWithoutABody = content{
@@ -81,6 +102,7 @@ var standardContent = content{
 	PublishedDate: "1970-01-01T01:00:00.000Z",
 	Body:          "Some body",
 	StoryPackage:  storyPackageUUID,
+	EditorialDesk: "/FT/Standard Content",
 }
 
 var standardContentPackage = content{
@@ -123,6 +145,15 @@ var updatedContent = content{
 	Title:         "New Title",
 	PublishedDate: "1999-12-12T01:00:00.000Z",
 	Body:          "Doesn't matter",
+}
+
+var specialContent = content{
+	UUID:          contentUUID,
+	Title:         "Content Title",
+	PublishedDate: "1970-01-01T01:00:00.000Z",
+	Body:          "Some body",
+	StoryPackage:  storyPackageUUID,
+	EditorialDesk: "/FT/Professional/Central Banking",
 }
 
 var sortStringSlicesDesc = cmpopts.SortSlices(func(a, b string) bool { return a < b })
@@ -172,202 +203,306 @@ func TestGetContentLabels(t *testing.T) {
 }
 
 func TestDeleteWithNoRelsIsDeleted(t *testing.T) {
-	assert := assert.New(t)
-	d := getDriverAndCheckClean(t, assert)
-	contentService := getContentService(d)
-	defer cleanDB(d, assert)
+	asst := assert.New(t)
+	l := logger.NewUPPLogger("content-rw-neo4j-test", "PANIC")
+	a := getAgent(defaultPolicy, l, t)
+	d := getDriverAndCheckClean(t, asst, l)
+	s := getContentService(d, a, l)
+	defer cleanDB(d, asst)
 
-	assert.NoError(contentService.Write(shorterContent, "TEST_TRANS_ID"), "Failed to write content")
+	asst.NoError(s.Write(shorterContent, "TEST_TRANS_ID"), "Failed to write content")
 
-	deleted, err := contentService.Delete(shorterContent.UUID, "TEST_TRANS_ID")
-	assert.True(deleted, "Didn't manage to delete content for uuid %s", shorterContent.UUID)
-	assert.NoError(err, "Error deleting content for uuid %s", shorterContent.UUID)
+	deleted, err := s.Delete(shorterContent.UUID, "TEST_TRANS_ID")
+	asst.True(deleted, "Didn't manage to delete content for uuid %s", shorterContent.UUID)
+	asst.NoError(err, "Error deleting content for uuid %s", shorterContent.UUID)
 
-	c, deleted, err := contentService.Read(shorterContent.UUID, "TEST_TRANS_ID")
+	c, deleted, err := s.Read(shorterContent.UUID, "TEST_TRANS_ID")
 
-	assert.Equal(content{}, c, "Found content %s who should have been deleted", c)
-	assert.False(deleted, "Found content for uuid %s who should have been deleted", standardContent.UUID)
-	assert.NoError(err, "Error trying to find content for uuid %s", standardContent.UUID)
+	asst.Equal(content{}, c, "Found content %s who should have been deleted", c)
+	asst.False(
+		deleted,
+		"Found content for uuid %s who should have been deleted",
+		standardContent.UUID,
+	)
+	asst.NoError(err, "Error trying to find content for uuid %s", standardContent.UUID)
 }
 
 func TestDeleteWithRelsIsDeleted(t *testing.T) {
-	assert := assert.New(t)
-	d := getDriverAndCheckClean(t, assert)
-	s := getContentService(d)
-	defer cleanDB(d, assert)
+	asst := assert.New(t)
+	l := logger.NewUPPLogger("content-rw-neo4j-test", "PANIC")
+	a := getAgent(defaultPolicy, l, t)
+	d := getDriverAndCheckClean(t, asst, l)
+	s := getContentService(d, a, l)
+	defer cleanDB(d, asst)
 
-	assert.NoError(s.Write(standardContent, "TEST_TRANS_ID"), "Failed to write content")
-	writeRelationship(d, standardContent.UUID, conceptUUID, assert)
+	asst.NoError(s.Write(standardContent, "TEST_TRANS_ID"), "Failed to write content")
+	writeRelationship(d, standardContent.UUID, conceptUUID, asst)
 
 	deleted, err := s.Delete(standardContent.UUID, "TEST_TRANS_ID")
-	assert.NoError(err, "Error deleting content for uuid %s", standardContent.UUID)
-	assert.True(deleted, "Didn't manage to delete content for uuid %s", standardContent.UUID)
+	asst.NoError(err, "Error deleting content for uuid %s", standardContent.UUID)
+	asst.True(deleted, "Didn't manage to delete content for uuid %s", standardContent.UUID)
 
 	c, found, err := s.Read(standardContent.UUID, "TEST_TRANS_ID")
 
-	assert.Equal(content{}, c, "Found content %s who should have been deleted", c)
-	assert.False(found, "Found content for uuid %s who should have been deleted", standardContent.UUID)
-	assert.NoError(err, "Error trying to find content for uuid %s", standardContent.UUID)
+	asst.Equal(content{}, c, "Found content %s who should have been deleted", c)
+	asst.False(
+		found,
+		"Found content for uuid %s who should have been deleted",
+		standardContent.UUID,
+	)
+	asst.NoError(err, "Error trying to find content for uuid %s", standardContent.UUID)
 
 	exists, err := doesThingExist(standardContent.UUID, d)
-	assert.NoError(err)
-	assert.False(exists, "Thing should not exist for deleted content with relations")
+	asst.NoError(err)
+	asst.False(exists, "Thing should not exist for deleted content with relations")
 }
 
 func TestDeleteContentPackageIsDeletedAttachedContentCollectionRemains(t *testing.T) {
-	assert := assert.New(t)
-	d := getDriverAndCheckClean(t, assert)
-	contentService := getContentService(d)
-	defer cleanDB(d, assert)
+	asst := assert.New(t)
+	l := logger.NewUPPLogger("content-rw-neo4j-test", "PANIC")
+	a := getAgent(defaultPolicy, l, t)
+	d := getDriverAndCheckClean(t, asst, l)
+	s := getContentService(d, a, l)
+	defer cleanDB(d, asst)
 
-	assert.NoError(contentService.Write(genericContentPackage, "TEST_TRANS_ID"), "Failed to write content package")
-	writeNodeWithLabels(d, contentCollectionUUID, "Thing:Content:ContentCollection", assert)
-	writeContentPackageContainsRelation(d, genericContentPackage.UUID, contentCollectionUUID, assert)
+	asst.NoError(s.Write(genericContentPackage, "TEST_TRANS_ID"), "Failed to write content package")
+	writeNodeWithLabels(d, contentCollectionUUID, "Thing:Content:ContentCollection", asst)
+	writeContentPackageContainsRelation(d, genericContentPackage.UUID, contentCollectionUUID, asst)
 
-	deleted, err := contentService.Delete(genericContentPackage.UUID, "TEST_TRANS_ID")
-	assert.NoError(err, "Error deleting Content Package for uuid %contentService", genericContentPackage.UUID)
-	assert.True(deleted, "Didn't manage to delete Content Package for uuid %contentService", genericContentPackage.UUID)
+	deleted, err := s.Delete(genericContentPackage.UUID, "TEST_TRANS_ID")
+	asst.NoError(
+		err,
+		"Error deleting Content Package for uuid %contentService",
+		genericContentPackage.UUID,
+	)
+	asst.True(
+		deleted,
+		"Didn't manage to delete Content Package for uuid %contentService",
+		genericContentPackage.UUID,
+	)
 
-	c, found, err := contentService.Read(genericContentPackage.UUID, "TEST_TRANS_ID")
+	c, found, err := s.Read(genericContentPackage.UUID, "TEST_TRANS_ID")
 
-	assert.Equal(content{}, c, "Found Content Package %contentService who should have been deleted", c)
-	assert.False(found, "Found Content Package for uuid %contentService who should have been deleted", genericContentPackage.UUID)
-	assert.NoError(err, "Error trying to find Content Package for uuid %s", genericContentPackage.UUID)
+	asst.Equal(
+		content{},
+		c,
+		"Found Content Package %contentService who should have been deleted",
+		c,
+	)
+	asst.False(
+		found,
+		"Found Content Package for uuid %contentService who should have been deleted",
+		genericContentPackage.UUID,
+	)
+	asst.NoError(
+		err,
+		"Error trying to find Content Package for uuid %s",
+		genericContentPackage.UUID,
+	)
 
 	exists, err := doesThingExist(genericContentPackage.UUID, d)
-	assert.NoError(err)
-	assert.False(exists, "Thing should not exist for deleted Content Package")
+	asst.NoError(err)
+	asst.False(exists, "Thing should not exist for deleted Content Package")
 
 	existsCC, err := doesThingExist(contentCollectionUUID, d)
-	assert.NoError(err)
-	assert.True(existsCC, "Content Collection should exist")
+	asst.NoError(err)
+	asst.True(existsCC, "Content Collection should exist")
 }
 
 func TestDeleteContentPackageIsDeletedAttachedNodeIsAlsoDeleted(t *testing.T) {
-	assert := assert.New(t)
-	d := getDriverAndCheckClean(t, assert)
-	contentService := getContentService(d)
-	defer cleanDB(d, assert)
+	asst := assert.New(t)
+	l := logger.NewUPPLogger("content-rw-neo4j-test", "PANIC")
+	a := getAgent(defaultPolicy, l, t)
+	d := getDriverAndCheckClean(t, asst, l)
+	s := getContentService(d, a, l)
+	defer cleanDB(d, asst)
 
-	assert.NoError(contentService.Write(genericContentPackage, "TEST_TRANS_ID"), "Failed to write content package")
-	writeNodeWithLabels(d, thingUUID, "Thing", assert)
-	writeContentPackageContainsRelation(d, genericContentPackage.UUID, thingUUID, assert)
+	asst.NoError(s.Write(genericContentPackage, "TEST_TRANS_ID"), "Failed to write content package")
+	writeNodeWithLabels(d, thingUUID, "Thing", asst)
+	writeContentPackageContainsRelation(d, genericContentPackage.UUID, thingUUID, asst)
 
-	deleted, err := contentService.Delete(genericContentPackage.UUID, "TEST_TRANS_ID")
-	assert.NoError(err, "Error deleting Content Package for uuid %contentService", genericContentPackage.UUID)
-	assert.True(deleted, "Didn't manage to delete Content Package for uuid %contentService", genericContentPackage.UUID)
+	deleted, err := s.Delete(genericContentPackage.UUID, "TEST_TRANS_ID")
+	asst.NoError(
+		err,
+		"Error deleting Content Package for uuid %contentService",
+		genericContentPackage.UUID,
+	)
+	asst.True(
+		deleted,
+		"Didn't manage to delete Content Package for uuid %contentService",
+		genericContentPackage.UUID,
+	)
 
-	c, found, err := contentService.Read(genericContentPackage.UUID, "TEST_TRANS_ID")
+	c, found, err := s.Read(genericContentPackage.UUID, "TEST_TRANS_ID")
 
-	assert.Equal(content{}, c, "Found Content Package %contentService who should have been deleted", c)
-	assert.False(found, "Found Content Package for uuid %contentService who should have been deleted", genericContentPackage.UUID)
-	assert.NoError(err, "Error trying to find Content Package for uuid %contentService", genericContentPackage.UUID)
+	asst.Equal(
+		content{},
+		c,
+		"Found Content Package %contentService who should have been deleted",
+		c,
+	)
+	asst.False(
+		found,
+		"Found Content Package for uuid %contentService who should have been deleted",
+		genericContentPackage.UUID,
+	)
+	asst.NoError(
+		err,
+		"Error trying to find Content Package for uuid %contentService",
+		genericContentPackage.UUID,
+	)
 
 	exists, err := doesThingExist(genericContentPackage.UUID, d)
-	assert.NoError(err)
-	assert.False(exists, "Thing should not exist for deleted Content Package")
+	asst.NoError(err)
+	asst.False(exists, "Thing should not exist for deleted Content Package")
 
 	existsThing, err := doesThingExist(thingUUID, d)
-	assert.NoError(err)
-	assert.False(existsThing, "Thing related to deleted Content Package should not exist")
+	asst.NoError(err)
+	asst.False(existsThing, "Thing related to deleted Content Package should not exist")
 }
 
 func TestCreateAllValuesPresent(t *testing.T) {
-	assert := assert.New(t)
+	asst := assert.New(t)
+	l := logger.NewUPPLogger("content-rw-neo4j-test", "PANIC")
+	a := getAgent(defaultPolicy, l, t)
+	d := getDriverAndCheckClean(t, asst, l)
+	s := getContentService(d, a, l)
+	defer cleanDB(d, asst)
 
-	d := getDriverAndCheckClean(t, assert)
-	contentDriver := getContentService(d)
-	defer cleanDB(d, assert)
+	asst.NoError(s.Write(standardContent, "TEST_TRANS_ID"), "Failed to write content")
 
-	assert.NoError(contentDriver.Write(standardContent, "TEST_TRANS_ID"), "Failed to write content")
-
-	storedContent, _, err := contentDriver.Read(standardContent.UUID, "TEST_TRANS_ID")
-	assert.NoError(err)
-	assert.NotEmpty(storedContent, "Failed to retireve stored content")
+	storedContent, _, err := s.Read(standardContent.UUID, "TEST_TRANS_ID")
+	asst.NoError(err)
+	asst.NotEmpty(storedContent, "Failed to retrieve stored content")
 	actualContent := storedContent.(content)
 
-	assert.Equal(standardContent.UUID, actualContent.UUID, "Failed to match UUID")
-	assert.Equal(standardContent.Title, actualContent.Title, "Failed to match Title")
-	assert.Equal(standardContent.PublishedDate, actualContent.PublishedDate, "Failed to match PublishedDate")
-	assert.Empty(actualContent.Body, "Body should not have been stored")
-	assert.Equal(standardContent.StoryPackage, actualContent.StoryPackage)
-	assert.Equal(standardContent.ContentPackage, actualContent.ContentPackage)
+	asst.Equal(standardContent.UUID, actualContent.UUID, "Failed to match UUID")
+	asst.Equal(standardContent.Title, actualContent.Title, "Failed to match Title")
+	asst.Equal(
+		standardContent.PublishedDate,
+		actualContent.PublishedDate,
+		"Failed to match PublishedDate",
+	)
+	asst.Empty(actualContent.Body, "Body should not have been stored")
+	asst.Equal(standardContent.StoryPackage, actualContent.StoryPackage)
+	asst.Equal(standardContent.ContentPackage, actualContent.ContentPackage)
 }
 
 func TestCreateNotAllValuesPresent(t *testing.T) {
-	assert := assert.New(t)
+	asst := assert.New(t)
+	l := logger.NewUPPLogger("content-rw-neo4j-test", "PANIC")
+	a := getAgent(defaultPolicy, l, t)
+	d := getDriverAndCheckClean(t, asst, l)
+	s := getContentService(d, a, l)
+	defer cleanDB(d, asst)
 
-	d := getDriverAndCheckClean(t, assert)
-	contentDriver := getContentService(d)
-	defer cleanDB(d, assert)
+	asst.NoError(s.Write(shorterContent, "TEST_TRANS_ID"), "Failed to write content")
 
-	assert.NoError(contentDriver.Write(shorterContent, "TEST_TRANS_ID"), "Failed to write content")
+	storedContent, _, err := s.Read(shorterContent.UUID, "TEST_TRANS_ID")
 
-	storedContent, _, err := contentDriver.Read(shorterContent.UUID, "TEST_TRANS_ID")
-
-	assert.NoError(err)
-	assert.Empty(storedContent.(content).PublishedDate)
-	assert.Empty(storedContent.(content).Title)
+	asst.NoError(err)
+	asst.Empty(storedContent.(content).PublishedDate)
+	asst.Empty(storedContent.(content).Title)
 }
 
 func TestWillUpdateProperties(t *testing.T) {
-	assert := assert.New(t)
-	d := getDriverAndCheckClean(t, assert)
-	contentDriver := getContentService(d)
-	defer cleanDB(d, assert)
+	asst := assert.New(t)
+	l := logger.NewUPPLogger("content-rw-neo4j-test", "PANIC")
+	a := getAgent(defaultPolicy, l, t)
+	d := getDriverAndCheckClean(t, asst, l)
+	s := getContentService(d, a, l)
+	defer cleanDB(d, asst)
 
-	assert.NoError(contentDriver.Write(standardContent, "TEST_TRANS_ID"), "Failed to write content")
-	storedContent, _, err := contentDriver.Read(contentUUID, "TEST_TRANS_ID")
+	asst.NoError(s.Write(standardContent, "TEST_TRANS_ID"), "Failed to write content")
+	storedContent, _, err := s.Read(contentUUID, "TEST_TRANS_ID")
 
-	assert.NoError(err)
-	assert.Equal(storedContent.(content).Title, standardContent.Title)
-	assert.Equal(storedContent.(content).PublishedDate, standardContent.PublishedDate)
+	asst.NoError(err)
+	asst.Equal(storedContent.(content).Title, standardContent.Title)
+	asst.Equal(storedContent.(content).PublishedDate, standardContent.PublishedDate)
 
-	assert.NoError(contentDriver.Write(updatedContent, "TEST_TRANS_ID"), "Failed to write updated content")
-	storedContent, _, err = contentDriver.Read(contentUUID, "TEST_TRANS_ID")
+	asst.NoError(s.Write(updatedContent, "TEST_TRANS_ID"), "Failed to write updated content")
+	storedContent, _, err = s.Read(contentUUID, "TEST_TRANS_ID")
 
-	assert.NoError(err)
-	assert.Equal(storedContent.(content).Title, updatedContent.Title, "Should have updated Title but it is still present")
-	assert.Equal(storedContent.(content).PublishedDate, updatedContent.PublishedDate, "Should have updated PublishedDate but it is still present")
+	asst.NoError(err)
+	asst.Equal(
+		storedContent.(content).Title,
+		updatedContent.Title,
+		"Should have updated Title but it is still present",
+	)
+	asst.Equal(
+		storedContent.(content).PublishedDate,
+		updatedContent.PublishedDate,
+		"Should have updated PublishedDate but it is still present",
+	)
 }
 
 func TestUpdateWillRemovePropertiesNoLongerPresent(t *testing.T) {
-	assert := assert.New(t)
-	d := getDriverAndCheckClean(t, assert)
-	contentDriver := getContentService(d)
-	defer cleanDB(d, assert)
+	asst := assert.New(t)
+	l := logger.NewUPPLogger("content-rw-neo4j-test", "PANIC")
+	a := getAgent(defaultPolicy, l, t)
+	d := getDriverAndCheckClean(t, asst, l)
+	s := getContentService(d, a, l)
+	defer cleanDB(d, asst)
 
-	assert.NoError(contentDriver.Write(standardContentPackage, "TEST_TRANS_ID"), "Failed to write content")
-	storedContent, _, err := contentDriver.Read(contentUUID, "TEST_TRANS_ID")
+	asst.NoError(s.Write(standardContentPackage, "TEST_TRANS_ID"), "Failed to write content")
+	storedContent, _, err := s.Read(contentUUID, "TEST_TRANS_ID")
 
-	assert.NoError(err)
-	assert.NotEmpty(storedContent.(content).Title)
-	assert.NotEmpty(storedContent.(content).PublishedDate)
-	assert.Equal(1, checkIsCuratedForRelationship(d, storyPackageUUID, assert), "incorrect number of isCuratedFor relationships")
-	assert.Equal(1, checkContainsRelationship(d, contentPackageUUID, assert), "incorrect number of contains relationships")
+	asst.NoError(err)
+	asst.NotEmpty(storedContent.(content).Title)
+	asst.NotEmpty(storedContent.(content).PublishedDate)
+	asst.Equal(
+		1,
+		checkIsCuratedForRelationship(d, storyPackageUUID, asst),
+		"incorrect number of isCuratedFor relationships",
+	)
+	asst.Equal(
+		1,
+		checkContainsRelationship(d, contentPackageUUID, asst),
+		"incorrect number of contains relationships",
+	)
 
-	assert.NoError(contentDriver.Write(shorterContent, "TEST_TRANS_ID"), "Failed to write updated content")
-	storedContent, _, err = contentDriver.Read(contentUUID, "TEST_TRANS_ID")
+	asst.NoError(s.Write(shorterContent, "TEST_TRANS_ID"), "Failed to write updated content")
+	storedContent, _, err = s.Read(contentUUID, "TEST_TRANS_ID")
 
-	assert.NoError(err)
-	assert.NotEmpty(storedContent, "Failed to rеtriеve updated content")
-	assert.Empty(storedContent.(content).Title, "Update should have removed Title but it is still present")
-	assert.Empty(storedContent.(content).PublishedDate, "Update should have removed PublishedDate but it is still present")
-	assert.Equal(0, checkIsCuratedForRelationship(d, storyPackageUUID, assert), "incorrect number of isCuratedFor relationships")
-	assert.Equal(0, checkContainsRelationship(d, contentPackageUUID, assert), "incorrect number of contains relationships")
+	asst.NoError(err)
+	asst.NotEmpty(storedContent, "Failed to rеtriеve updated content")
+	asst.Empty(
+		storedContent.(content).Title,
+		"Update should have removed Title but it is still present",
+	)
+	asst.Empty(
+		storedContent.(content).PublishedDate,
+		"Update should have removed PublishedDate but it is still present",
+	)
+	asst.Equal(
+		0,
+		checkIsCuratedForRelationship(d, storyPackageUUID, asst),
+		"incorrect number of isCuratedFor relationships",
+	)
+	asst.Equal(
+		0,
+		checkContainsRelationship(d, contentPackageUUID, asst),
+		"incorrect number of contains relationships",
+	)
 }
 
 func TestWriteCalculateEpocCorrectly(t *testing.T) {
-	assert := assert.New(t)
-
-	d := getDriverAndCheckClean(t, assert)
-	contentService := getContentService(d)
-	defer cleanDB(d, assert)
+	asst := assert.New(t)
+	l := logger.NewUPPLogger("content-rw-neo4j-test", "PANIC")
+	a := getAgent(defaultPolicy, l, t)
+	d := getDriverAndCheckClean(t, asst, l)
+	s := getContentService(d, a, l)
+	defer cleanDB(d, asst)
 
 	uuid := standardContent.UUID
-	contentReceived := content{UUID: uuid, Title: "TestContent", PublishedDate: "1970-01-01T01:00:00.000Z", Body: "Some Test text"}
-	err := contentService.Write(contentReceived, "TEST_TRANS_ID")
-	assert.NoError(err)
+	contentReceived := content{
+		UUID:          uuid,
+		Title:         "TestContent",
+		PublishedDate: "1970-01-01T01:00:00.000Z",
+		Body:          "Some Test text",
+	}
+	err := s.Write(contentReceived, "TEST_TRANS_ID")
+	asst.NoError(err)
 
 	var result []struct {
 		PublishedDateEpoc int `json:"t.publishedDateEpoch"`
@@ -384,19 +519,20 @@ func TestWriteCalculateEpocCorrectly(t *testing.T) {
 	}
 
 	err = d.Write(getEpochQuery)
-	assert.NoError(err)
-	assert.Equal(3600, result[0].PublishedDateEpoc, "Epoc of 1970-01-01T01:00:00.000Z should be 3600")
+	asst.NoError(err)
+	asst.Equal(3600, result[0].PublishedDateEpoc, "Epoc of 1970-01-01T01:00:00.000Z should be 3600")
 }
 
 func TestWritePrefLabelIsAlsoWrittenAndIsEqualToTitle(t *testing.T) {
-	assert := assert.New(t)
+	asst := assert.New(t)
+	l := logger.NewUPPLogger("content-rw-neo4j-test", "PANIC")
+	a := getAgent(defaultPolicy, l, t)
+	d := getDriverAndCheckClean(t, asst, l)
+	s := getContentService(d, a, l)
+	defer cleanDB(d, asst)
 
-	d := getDriverAndCheckClean(t, assert)
-	contentService := getContentService(d)
-	defer cleanDB(d, assert)
-
-	err := contentService.Write(standardContent, "TEST_TRANS_ID")
-	assert.NoError(err)
+	err := s.Write(standardContent, "TEST_TRANS_ID")
+	asst.NoError(err)
 
 	var result []struct {
 		PrefLabel string `json:"t.prefLabel"`
@@ -413,19 +549,20 @@ func TestWritePrefLabelIsAlsoWrittenAndIsEqualToTitle(t *testing.T) {
 	}
 
 	err = d.Write(getPrefLabelQuery)
-	assert.NoError(err)
-	assert.Equal(standardContent.Title, result[0].PrefLabel, "PrefLabel should be 'Content Title'")
+	asst.NoError(err)
+	asst.Equal(standardContent.Title, result[0].PrefLabel, "PrefLabel should be 'Content Title'")
 }
 
 func TestWriteNodeLabelsAreWrittenForContent(t *testing.T) {
-	assert := assert.New(t)
+	asst := assert.New(t)
+	l := logger.NewUPPLogger("content-rw-neo4j-test", "PANIC")
+	a := getAgent(defaultPolicy, l, t)
+	d := getDriverAndCheckClean(t, asst, l)
+	s := getContentService(d, a, l)
+	defer cleanDB(d, asst)
 
-	d := getDriverAndCheckClean(t, assert)
-	contentService := getContentService(d)
-	defer cleanDB(d, assert)
-
-	err := contentService.Write(standardContent, "TEST_TRANS_ID")
-	assert.NoError(err)
+	err := s.Write(standardContent, "TEST_TRANS_ID")
+	asst.NoError(err)
 
 	var result []struct {
 		NodeLabels []string `json:"labels(t)"`
@@ -444,23 +581,24 @@ func TestWriteNodeLabelsAreWrittenForContent(t *testing.T) {
 	}
 
 	err = d.Write(getNodeLabelsQuery...)
-	assert.NoError(err)
+	asst.NoError(err)
 
 	want := []string{"Thing", "Content"}
 	eq := cmp.Equal(result[0].NodeLabels, want, sortStringSlicesDesc)
 	diff := cmp.Diff(result[0].NodeLabels, want, sortStringSlicesDesc)
-	assert.True(eq, fmt.Sprintf("- got, + want: %s", diff))
+	asst.True(eq, fmt.Sprintf("- got, + want: %s", diff))
 }
 
 func TestWriteNodeLabelsAreWrittenForContentPackage(t *testing.T) {
-	assert := assert.New(t)
+	asst := assert.New(t)
+	l := logger.NewUPPLogger("content-rw-neo4j-test", "PANIC")
+	a := getAgent(defaultPolicy, l, t)
+	d := getDriverAndCheckClean(t, asst, l)
+	s := getContentService(d, a, l)
+	defer cleanDB(d, asst)
 
-	d := getDriverAndCheckClean(t, assert)
-	contentService := getContentService(d)
-	defer cleanDB(d, assert)
-
-	err := contentService.Write(standardContentPackage, "TEST_TRANS_ID")
-	assert.NoError(err)
+	err := s.Write(standardContentPackage, "TEST_TRANS_ID")
+	asst.NoError(err)
 
 	var result []struct {
 		NodeLabels []string `json:"labels(t)"`
@@ -477,24 +615,25 @@ func TestWriteNodeLabelsAreWrittenForContentPackage(t *testing.T) {
 	}
 
 	err = d.Write(getNodeLabelsQuery)
-	assert.NoError(err)
+	asst.NoError(err)
 
 	want := []string{"Thing", "Content", "ContentPackage"}
 	eq := cmp.Equal(result[0].NodeLabels, want, sortStringSlicesDesc)
 	diff := cmp.Diff(result[0].NodeLabels, want, sortStringSlicesDesc)
 
-	assert.True(eq, fmt.Sprintf("- got, + want: %s", diff))
+	asst.True(eq, fmt.Sprintf("- got, + want: %s", diff))
 }
 
 func TestWriteNodeLabelsAreWrittenForGenericContentPackage(t *testing.T) {
-	assert := assert.New(t)
+	asst := assert.New(t)
+	l := logger.NewUPPLogger("content-rw-neo4j-test", "PANIC")
+	a := getAgent(defaultPolicy, l, t)
+	d := getDriverAndCheckClean(t, asst, l)
+	s := getContentService(d, a, l)
+	defer cleanDB(d, asst)
 
-	d := getDriverAndCheckClean(t, assert)
-	contentService := getContentService(d)
-	defer cleanDB(d, assert)
-
-	err := contentService.Write(genericContentPackage, "TEST_TRANS_ID")
-	assert.NoError(err)
+	err := s.Write(genericContentPackage, "TEST_TRANS_ID")
+	asst.NoError(err)
 
 	var result []struct {
 		NodeLabels []string `json:"labels(t)"`
@@ -510,48 +649,60 @@ func TestWriteNodeLabelsAreWrittenForGenericContentPackage(t *testing.T) {
 	}
 
 	err = d.Write(getNodeLabelsQuery)
-	assert.NoError(err)
+	asst.NoError(err)
 
 	want := []string{"Thing", "Content", "ContentPackage"}
 	eq := cmp.Equal(result[0].NodeLabels, want, sortStringSlicesDesc)
 	diff := cmp.Diff(result[0].NodeLabels, want, sortStringSlicesDesc)
 
-	assert.True(eq, fmt.Sprintf("- got, + want: %s", diff))
+	asst.True(eq, fmt.Sprintf("- got, + want: %s", diff))
 }
 
 func TestContentWontBeWrittenIfNoBody(t *testing.T) {
-	assert := assert.New(t)
-	d := getDriverAndCheckClean(t, assert)
-	contentService := getContentService(d)
-	defer cleanDB(d, assert)
+	asst := assert.New(t)
+	l := logger.NewUPPLogger("content-rw-neo4j-test", "PANIC")
+	a := getAgent(defaultPolicy, l, t)
+	d := getDriverAndCheckClean(t, asst, l)
+	s := getContentService(d, a, l)
+	defer cleanDB(d, asst)
 
-	err := contentService.Write(contentWithoutABody, "TEST_TRANS_ID")
-	assert.NoError(err, "Failed to write content")
+	err := s.Write(contentWithoutABody, "TEST_TRANS_ID")
+	asst.NoError(err, "Failed to write content")
 
-	storedContent, _, err := contentService.Read(contentWithoutABody.UUID, "TEST_TRANS_ID")
+	storedContent, _, err := s.Read(contentWithoutABody.UUID, "TEST_TRANS_ID")
 	if errors.Is(err, cmneo4j.ErrNoResultsFound) {
-		assert.Empty(storedContent)
+		asst.Empty(storedContent)
 	} else {
-		assert.NoError(err)
+		asst.NoError(err)
 	}
-	assert.Equal(content{}, storedContent, "No content should be written when the content has no body")
+	asst.Equal(
+		content{},
+		storedContent,
+		"No content should be written when the content has no body",
+	)
 }
 
 func TestContentWontBeWrittenIfNoBodyWithInvalidType(t *testing.T) {
-	assert := assert.New(t)
-	d := getDriverAndCheckClean(t, assert)
-	contentService := getContentService(d)
-	defer cleanDB(d, assert)
+	asst := assert.New(t)
+	l := logger.NewUPPLogger("content-rw-neo4j-test", "PANIC")
+	a := getAgent(defaultPolicy, l, t)
+	d := getDriverAndCheckClean(t, asst, l)
+	s := getContentService(d, a, l)
+	defer cleanDB(d, asst)
 
-	assert.NoError(contentService.Write(contentWithoutABodyWithType, "TEST_TRANS_ID"), "Failed to write content")
-	storedContent, _, err := contentService.Read(contentWithoutABodyWithType.UUID, "TEST_TRANS_ID")
+	asst.NoError(s.Write(contentWithoutABodyWithType, "TEST_TRANS_ID"), "Failed to write content")
+	storedContent, _, err := s.Read(contentWithoutABodyWithType.UUID, "TEST_TRANS_ID")
 
 	if errors.Is(err, cmneo4j.ErrNoResultsFound) {
-		assert.Empty(storedContent)
+		asst.Empty(storedContent)
 	} else {
-		assert.NoError(err)
+		asst.NoError(err)
 	}
-	assert.Equal(content{}, storedContent, "No content should be written when the content has no body")
+	asst.Equal(
+		content{},
+		storedContent,
+		"No content should be written when the content has no body",
+	)
 }
 
 func TestLiveEventWillBeWritten(t *testing.T) {
@@ -578,42 +729,91 @@ func TestAudioWillBeWritten(t *testing.T) {
 	testContentWillBeWritten(t, audioContent)
 }
 
-func testContentWillBeWritten(t *testing.T, c content) {
-	assert := assert.New(t)
-	d := getDriverAndCheckClean(t, assert)
-	s := getContentService(d)
-	defer cleanDB(d, assert)
+func TestSpecialContentWillNotBeWritten(t *testing.T) {
+	asst := assert.New(t)
+	l := logger.NewUPPLogger("content-rw-neo4j-test", "PANIC")
 
-	assert.NoError(s.Write(c, "TEST_TRANS_ID"), "Failed to write content")
+	a := getAgent(specialContentPolicy, l, t)
+	d := getDriverAndCheckClean(t, asst, l)
+	s := getContentService(d, a, l)
+	defer cleanDB(d, asst)
 
-	storedContent, _, err := s.Read(c.UUID, "TEST_TRANS_ID")
-	assert.NoError(err)
-	assert.NotEmpty(storedContent, "Failed to retrieve stored content")
-	actualContent := storedContent.(content)
+	asst.NoError(s.Write(specialContent, "TEST_TRANS_ID"), "Failed to write content")
 
-	assert.Equal(c.UUID, actualContent.UUID, "Failed to match UUID")
-	assert.Equal(c.Title, actualContent.Title, "Failed to match Title")
+	c, _, err := s.Read(specialContent.UUID, "TEST_TRANS_ID")
+	asst.NoError(err)
+	asst.Empty(
+		c,
+		"There should not have been any content retrieved. Policy filtering is not working.",
+	)
 }
 
-func getDriverAndCheckClean(t *testing.T, assert *assert.Assertions) *cmneo4j.Driver {
-	d := getNeoDriver(assert)
-	cleanDB(d, assert)
+func TestContentWillBeWrittenSpecialContentCheck(t *testing.T) {
+	asst := assert.New(t)
+	l := logger.NewUPPLogger("content-rw-neo4j-test", "PANIC")
+
+	a := getAgent(specialContentPolicy, l, t)
+	d := getDriverAndCheckClean(t, asst, l)
+	s := getContentService(d, a, l)
+	defer cleanDB(d, asst)
+
+	asst.NoError(s.Write(standardContent, "TEST_TRANS_ID"), "Failed to write content")
+
+	c, _, err := s.Read(standardContent.UUID, "TEST_TRANS_ID")
+	asst.NoError(err)
+	asst.NotEmpty(
+		c,
+		"Failed to retrieve stored content. There is something wrong with the special content policy.",
+	)
+
+	r := c.(content)
+	asst.Equal(standardContent.UUID, r.UUID, "Failed to match UUID")
+	asst.Equal(standardContent.Title, r.Title, "Failed to match Title")
+}
+
+func testContentWillBeWritten(t *testing.T, c content) {
+	asst := assert.New(t)
+
+	l := logger.NewUPPLogger("content-rw-neo4j-test", "PANIC")
+
+	a := getAgent(defaultPolicy, l, t)
+	d := getDriverAndCheckClean(t, asst, l)
+	s := getContentService(d, a, l)
+	defer cleanDB(d, asst)
+
+	asst.NoError(s.Write(c, "TEST_TRANS_ID"), "Failed to write content")
+
+	storedContent, _, err := s.Read(c.UUID, "TEST_TRANS_ID")
+	asst.NoError(err)
+	asst.NotEmpty(storedContent, "Failed to retrieve stored content")
+	actualContent := storedContent.(content)
+
+	asst.Equal(c.UUID, actualContent.UUID, "Failed to match UUID")
+	asst.Equal(c.Title, actualContent.Title, "Failed to match Title")
+}
+
+func getDriverAndCheckClean(
+	t *testing.T,
+	a *assert.Assertions,
+	l *logger.UPPLogger,
+) *cmneo4j.Driver {
+	d := getNeoDriver(a, l)
+	cleanDB(d, a)
 	checkDBClean(d, t)
 	return d
 }
 
-func getNeoDriver(assert *assert.Assertions) *cmneo4j.Driver {
+func getNeoDriver(a *assert.Assertions, l *logger.UPPLogger) *cmneo4j.Driver {
 	url := os.Getenv("NEO4J_TEST_URL")
 	if url == "" {
 		url = "bolt://localhost:7687"
 	}
-	log := logger.NewUPPLogger("content-rw-neo4j-test", "PANIC")
-	d, err := cmneo4j.NewDefaultDriver(url, log)
-	assert.NoError(err, "Failed to connect to Neo4j")
+	d, err := cmneo4j.NewDefaultDriver(url, l)
+	a.NoError(err, "Failed to connect to Neo4j")
 	return d
 }
 
-func cleanDB(d *cmneo4j.Driver, assert *assert.Assertions) {
+func cleanDB(d *cmneo4j.Driver, a *assert.Assertions) {
 	uuids := []string{
 		contentUUID,
 		conceptUUID,
@@ -632,7 +832,7 @@ func cleanDB(d *cmneo4j.Driver, assert *assert.Assertions) {
 		liveEventUUID,
 	}
 
-	qs := []*cmneo4j.Query{}
+	var qs []*cmneo4j.Query
 	for _, uuid := range uuids {
 		qs = append(qs, &cmneo4j.Query{
 			Cypher: `MATCH (t:Thing {uuid: $uuid}) DETACH DELETE t`,
@@ -643,10 +843,15 @@ func cleanDB(d *cmneo4j.Driver, assert *assert.Assertions) {
 	}
 
 	err := d.Write(qs...)
-	assert.NoError(err)
+	a.NoError(err)
 }
 
-func writeContentPackageContainsRelation(d *cmneo4j.Driver, cpUUID string, UUID string, assert *assert.Assertions) {
+func writeContentPackageContainsRelation(
+	d *cmneo4j.Driver,
+	cpUUID string,
+	UUID string,
+	a *assert.Assertions,
+) {
 	writeRelation := `
 	MATCH (cp:ContentPackage {uuid: $cpUUID}), (t {uuid:$UUID})
 	CREATE (cp)-[pred:CONTAINS]->(t)
@@ -663,10 +868,10 @@ func writeContentPackageContainsRelation(d *cmneo4j.Driver, cpUUID string, UUID 
 	}
 
 	err := d.Write(qs...)
-	assert.NoError(err)
+	a.NoError(err)
 }
 
-func writeNodeWithLabels(d *cmneo4j.Driver, UUID string, labels string, assert *assert.Assertions) {
+func writeNodeWithLabels(d *cmneo4j.Driver, UUID string, labels string, a *assert.Assertions) {
 	writeThingWithLabelsQuery := `CREATE (n:` + labels + `{uuid: $uuid})`
 
 	qs := []*cmneo4j.Query{
@@ -679,10 +884,15 @@ func writeNodeWithLabels(d *cmneo4j.Driver, UUID string, labels string, assert *
 	}
 
 	err := d.Write(qs...)
-	assert.NoError(err)
+	a.NoError(err)
 }
 
-func writeRelationship(d *cmneo4j.Driver, contentID string, conceptID string, assert *assert.Assertions) {
+func writeRelationship(
+	d *cmneo4j.Driver,
+	contentID string,
+	conceptID string,
+	a *assert.Assertions,
+) {
 	annotateQuery := `
 		MERGE (content:Thing{uuid:$contentId})
 		MERGE (concept:Thing) ON CREATE SET concept.uuid = $conceptId
@@ -700,7 +910,7 @@ func writeRelationship(d *cmneo4j.Driver, contentID string, conceptID string, as
 	}
 
 	err := d.Write(qs...)
-	assert.NoError(err)
+	a.NoError(err)
 }
 
 func doesThingExist(uuid string, d *cmneo4j.Driver) (bool, error) {
@@ -723,7 +933,7 @@ func doesThingExist(uuid string, d *cmneo4j.Driver) (bool, error) {
 	return len(result) > 0, err
 }
 
-func checkIsCuratedForRelationship(d *cmneo4j.Driver, spID string, assert *assert.Assertions) int {
+func checkIsCuratedForRelationship(d *cmneo4j.Driver, spID string, a *assert.Assertions) int {
 	countQuery := `
 		MATCH (t:Thing{uuid:$storyPackageId})-[r:IS_CURATED_FOR]->(x)
 		RETURN count(r) as c`
@@ -741,12 +951,12 @@ func checkIsCuratedForRelationship(d *cmneo4j.Driver, spID string, assert *asser
 	}
 
 	err := d.Write(qs)
-	assert.NoError(err)
+	a.NoError(err)
 
 	return results[0].Count
 }
 
-func checkContainsRelationship(d *cmneo4j.Driver, cpID string, assert *assert.Assertions) int {
+func checkContainsRelationship(d *cmneo4j.Driver, cpID string, a *assert.Assertions) int {
 	countQuery := `
 		MATCH (t:Thing{uuid:$contentPackageId})<-[r:CONTAINS]-(x)
 		RETURN count(r) as c`
@@ -762,13 +972,13 @@ func checkContainsRelationship(d *cmneo4j.Driver, cpID string, assert *assert.As
 	}
 
 	err := d.Write(qs)
-	assert.NoError(err)
+	a.NoError(err)
 
 	return results[0].Count
 }
 
 func checkDBClean(d *cmneo4j.Driver, t *testing.T) {
-	assert := assert.New(t)
+	a := assert.New(t)
 
 	var result []struct {
 		UUID string `json:"t.uuid"`
@@ -786,14 +996,51 @@ func checkDBClean(d *cmneo4j.Driver, t *testing.T) {
 	}
 	err := d.Write(checkGraph)
 	if errors.Is(err, cmneo4j.ErrNoResultsFound) {
-		assert.Empty(result)
+		a.Empty(result)
 	} else {
-		assert.NoError(err)
+		a.NoError(err)
 	}
 }
 
-func getContentService(d *cmneo4j.Driver) Service {
-	cs := NewContentService(d)
+func getAgent(p string, l *logger.UPPLogger, t *testing.T) *policy.Agent {
+	url := os.Getenv("POLICY_AGENT_TEST_URL")
+	if url == "" {
+		url = "http://localhost:8181"
+	}
+	paths := map[string]string{
+		policy.SpecialContentKey: "content_rw_neo4j/special_content",
+	}
+
+	c := &http.Client{}
+
+	a := policy.NewAgent(url, paths, c, l)
+
+	req, err := http.NewRequest(
+		"PUT",
+		fmt.Sprintf("%s/v1/policies/c1d20fbc-e9bc-44fb-8b88-0e01d6b13225", url),
+		bytes.NewReader([]byte(p)),
+	)
+	if err != nil {
+		t.Logf(
+			"could not create a request for creating a test policy in the testing policy agent: %s",
+			err,
+		)
+		t.FailNow()
+	}
+	req.Header.Set("Content-Type", "text/plain")
+
+	res, err := c.Do(req)
+	if err != nil {
+		t.Logf("could not create a test policy in the testing policy agent: %s", err)
+		t.FailNow()
+	}
+	defer res.Body.Close()
+
+	return a
+}
+
+func getContentService(d *cmneo4j.Driver, a *policy.Agent, l *logger.UPPLogger) Service {
+	cs := NewContentService(d, a, l)
 	_ = cs.Initialise()
 	return cs
 }

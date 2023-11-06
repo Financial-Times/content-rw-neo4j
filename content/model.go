@@ -8,4 +8,5 @@ type content struct {
 	Type           string `json:"type,omitempty"`
 	StoryPackage   string `json:"storyPackage,omitempty"`
 	ContentPackage string `json:"contentPackage,omitempty"`
+	EditorialDesk  string `json:"editorialDesk,omitempty"`
 }

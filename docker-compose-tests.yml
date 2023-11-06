@@ -11,9 +11,11 @@ services:
     environment:
       - NEO4J_TEST_URL=bolt://neo4j:7687
       - CGO_ENABLED=1
+      - POLICY_AGENT_TEST_URL=http://opa:8181
     command: ["go", "test", "-mod=readonly", "-v", "-race", "-tags=integration", "./..."]
     depends_on:
       - neo4j
+      - opa
   neo4j:
     image: neo4j:4.4-enterprise
     environment:
@@ -22,3 +24,12 @@ services:
     ports:
       - "7474:7474"
       - "7687:7687"
+  opa:
+    image: openpolicyagent/opa:0.57.0
+    ports:
+      - "8181:8181"
+    command:
+      - "run"
+      - "--server"
+      - "--log-format=json-pretty"
+      - "--set=decision_logs.console=true"
