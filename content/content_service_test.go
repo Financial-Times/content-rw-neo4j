@@ -103,6 +103,7 @@ var standardContent = content{
 	Body:          "Some body",
 	StoryPackage:  storyPackageUUID,
 	EditorialDesk: "/FT/Standard Content",
+	Publication:   []string{"8e6c705e-1132-42a2-8db0-c295e29e8658"},
 }
 
 var standardContentPackage = content{
@@ -386,6 +387,7 @@ func TestCreateAllValuesPresent(t *testing.T) {
 	asst.Empty(actualContent.Body, "Body should not have been stored")
 	asst.Equal(standardContent.StoryPackage, actualContent.StoryPackage)
 	asst.Equal(standardContent.ContentPackage, actualContent.ContentPackage)
+	asst.Equal(standardContent.Publication, actualContent.Publication)
 }
 
 func TestCreateNotAllValuesPresent(t *testing.T) {

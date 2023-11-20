@@ -71,6 +71,7 @@ func (cd Service) Read(uuid string, transID string) (interface{}, bool, error) {
 			RETURN n.uuid as uuid,
 				n.title as title,
 				n.publishedDate as publishedDate,
+				n.publication as publication,
 				sp.uuid as storyPackage,
 				cp.uuid as contentPackage`,
 		Params: map[string]interface{}{
@@ -95,6 +96,7 @@ func (cd Service) Read(uuid string, transID string) (interface{}, bool, error) {
 		UUID:           result.UUID,
 		Title:          result.Title,
 		PublishedDate:  result.PublishedDate,
+		Publication:    result.Publication,
 		StoryPackage:   result.StoryPackage,
 		ContentPackage: result.ContentPackage,
 	}
@@ -139,6 +141,10 @@ func (cd Service) Write(thing interface{}, transID string) error {
 		}
 
 		params["publishedDateEpoch"] = datetimeEpoch.Unix()
+	}
+
+	if len(c.Publication) != 0 {
+		params["publication"] = c.Publication
 	}
 
 	deleteEntityRelationshipsQuery := &cmneo4j.Query{
