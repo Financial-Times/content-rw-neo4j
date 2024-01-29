@@ -1,151 +1,107 @@
 package policy
 
 import (
-	"encoding/json"
-	"io"
+	"errors"
+	"fmt"
+	"github.com/Financial-Times/go-logger/v2"
+	"github.com/Financial-Times/opa-client-go"
+	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
-
-	"github.com/Financial-Times/go-logger/v2"
 )
 
-const specialContentEditorialDesk string = "/FT/Professional/Central Banking"
+const (
+	testDecisionId = "1e58b3bf-995c-473e-90e9-ab1f10af74ab"
+)
 
-func TestAgent_CheckSpecialContentPolicyNoPathsConfig(t *testing.T) {
-	q := SpecialContentQuery{
-		EditorialDesk: specialContentEditorialDesk,
-	}
-
-	a := NewAgent("", make(map[string]string), nil, nil)
-
-	_, err := a.CheckSpecialContentPolicy(q)
-	assert.NotNil(t, err)
-	assert.IsType(t, &QueryMissingPathConfigError{}, err)
-}
-
-func TestAgent_CheckSpecialContentPolicyEmptyResult(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, err := w.Write(
-			[]byte(`{"decision_id": "TEST_UUID"}`),
-		)
-		if err != nil {
-			t.Logf(
-				"could not setup test server, failed to send mock response: %s",
-				err,
-			)
-			t.FailNow()
-		}
-	}))
-	defer srv.Close()
-
-	q := SpecialContentQuery{
-		EditorialDesk: specialContentEditorialDesk,
-	}
-	p := map[string]string{
-		SpecialContentKey: "content_rw_neo4j/special_content",
-	}
-	c := http.Client{}
-	l := logger.UPPLogger{}
-
-	a := NewAgent(srv.URL, p, &c, &l)
-
-	_, err := a.CheckSpecialContentPolicy(q)
-
-	assert.NotNil(t, err)
-	assert.IsType(t, &DecisionPayloadError{}, err)
-}
-
-func TestAgent_CheckSpecialContentPolicy(t *testing.T) {
-	t.Parallel()
-
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		b, err := io.ReadAll(r.Body)
-		if err != nil {
-			t.Logf(
-				"could not setup test server, failed to read mock request: %s",
-				err,
-			)
-			t.FailNow()
-		}
-
-		m := make(map[string]interface{})
-		err = json.Unmarshal(b, &m)
-		if err != nil {
-			t.Logf(
-				"could not setup test server, failed to unmarshal mock request: %s",
-				err,
-			)
-			t.FailNow()
-		}
-
-		if m["input"].(map[string]interface{})["editorialDesk"] == specialContentEditorialDesk {
-			_, err := w.Write(
-				[]byte(`{"decision_id": "TEST_UUID", "result": {"is_special_content": true}}`),
-			)
-			if err != nil {
-				t.Logf(
-					"could not setup test server, failed to send mock response: %s",
-					err,
-				)
-				t.FailNow()
-			}
-		} else {
-			_, err := w.Write([]byte(`{"decision_id": "TEST_UUID", "result": {"is_special_content": false}}`))
-			if err != nil {
-				t.Logf(
-					"could not setup test server, failed to send mock response: %s",
-					err,
-				)
-				t.FailNow()
-			}
-		}
-	}))
-	defer srv.Close()
-
+func TestAgent_EvaluateSpecialContentPolicy(t *testing.T) {
 	tests := []struct {
-		name     string
-		query    SpecialContentQuery
-		expected bool
+		name           string
+		server         *httptest.Server
+		paths          map[string]string
+		query          map[string]interface{}
+		expectedResult *SpecialContentPolicyResult
+		expectedError  error
 	}{
 		{
-			name: "Special content editorial desk.",
-			query: SpecialContentQuery{
-				EditorialDesk: specialContentEditorialDesk,
+			name: "Evaluate a valid decision for special content",
+			server: createHttpTestServer(
+				t,
+				fmt.Sprintf(`{"decision_id": %q, "result": {"is_special_content": true}}`, testDecisionId),
+			),
+			paths: map[string]string{
+				SpecialContentKey: "special/content",
 			},
-			expected: true,
+			query: map[string]interface{}{
+				"editorialDesk": "/FT/Professional/Central Banking",
+			},
+			expectedResult: &SpecialContentPolicyResult{
+				IsSpecialContent: true,
+			},
+			expectedError: nil,
 		},
 		{
-			name: "Standard content editorial desk.",
-			query: SpecialContentQuery{
-				EditorialDesk: "/FT/Professional/Standard Content",
+			name: "Evaluate a valid decision for non-special content",
+			server: createHttpTestServer(
+				t,
+				fmt.Sprintf(`{"decision_id": %q, "result": {"is_special_content": false}}`, testDecisionId),
+			),
+			paths: map[string]string{
+				SpecialContentKey: "special/content",
 			},
-			expected: false,
+			query: map[string]interface{}{
+				"editorialDesk": "/FT/Professional/Not Central Banking",
+			},
+			expectedResult: &SpecialContentPolicyResult{
+				IsSpecialContent: false,
+			},
+			expectedError: nil,
+		},
+		{
+			name: "Evaluate and receive an error.",
+			server: createHttpTestServer(
+				t,
+				``,
+			),
+			paths:          make(map[string]string),
+			query:          make(map[string]interface{}),
+			expectedResult: nil,
+			expectedError:  ErrEvaluatePolicy,
 		},
 	}
 
 	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			p := map[string]string{
-				SpecialContentKey: "content_rw_neo4j/special_content",
-			}
-			c := http.Client{}
-			l := logger.UPPLogger{}
+		t.Run(test.name, func(T *testing.T) {
+			defer test.server.Close()
 
-			a := NewAgent(srv.URL, p, &c, &l)
+			l := logger.NewUPPLogger("content-rw-neo4j", "INFO")
+			c := opa.NewOpenPolicyAgentClient(test.server.URL, test.paths, opa.WithLogger(l))
 
-			d, err := a.CheckSpecialContentPolicy(test.query)
+			o := NewOpenPolicyAgent(c, l)
+
+			result, err := o.EvaluateSpecialContentPolicy(test.query)
+
 			if err != nil {
-				t.Logf(
-					"an error occurred while testing CheckSpecialContentPolicy: %s",
-					err,
-				)
-				t.FailNow()
+				if !errors.Is(err, test.expectedError) {
+					t.Errorf(
+						"Unexpected error recieved from call to EvaluateSpecialContentPolicy: %v",
+						err,
+					)
+				}
+			} else {
+				assert.Equal(t, test.expectedResult, result)
 			}
-
-			assert.Equal(t, test.expected, d.Result.(SpecialContentDecision).IsSpecialContent)
 		})
 	}
+}
+
+func createHttpTestServer(t *testing.T, response string) *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, err := w.Write([]byte(response))
+		if err != nil {
+			t.Fatalf("could not write response from test http server: %v", err)
+		}
+	}))
 }

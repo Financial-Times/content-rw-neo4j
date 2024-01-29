@@ -19,3 +19,6 @@ resources:
     memory: 40Mi
   limits:
     memory: 256Mi
+env:
+  opaUrl: "http://localhost:8181"
+  opaSpecialContentPolicyPath: "content_rw_neo4j/special_content"
