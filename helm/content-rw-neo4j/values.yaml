@@ -11,7 +11,7 @@ image:
 openPolicyAgentSidecar:
   name: open-policy-agent
   repository: openpolicyagent/opa
-  tag: 0.57.0
+  tag: 0.61.0
   pullPolicy: IfNotPresent
 serviceAccount: eksctl-content-rw-neo4j-serviceaccount
 resources:
@@ -19,3 +19,6 @@ resources:
     memory: 40Mi
   limits:
     memory: 256Mi
+env:
+  opaUrl: "http://localhost:8181"
+  opaSpecialContentPolicyPath: "content_rw_neo4j/special_content"

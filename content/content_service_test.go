@@ -11,6 +11,8 @@ import (
 	"os"
 	"testing"
 
+	"github.com/Financial-Times/opa-client-go"
+
 	"github.com/Financial-Times/content-rw-neo4j/v3/policy"
 
 	"github.com/google/go-cmp/cmp"
@@ -1004,8 +1006,8 @@ func checkDBClean(d *cmneo4j.Driver, t *testing.T) {
 	}
 }
 
-func getAgent(p string, l *logger.UPPLogger, t *testing.T) *policy.Agent {
-	url := os.Getenv("POLICY_AGENT_TEST_URL")
+func getAgent(p string, l *logger.UPPLogger, t *testing.T) policy.Agent {
+	url := os.Getenv("OPA_URL")
 	if url == "" {
 		url = "http://localhost:8181"
 	}
@@ -1013,10 +1015,12 @@ func getAgent(p string, l *logger.UPPLogger, t *testing.T) *policy.Agent {
 		policy.SpecialContentKey: "content_rw_neo4j/special_content",
 	}
 
-	c := &http.Client{}
+	c := http.DefaultClient
 
-	a := policy.NewAgent(url, paths, c, l)
+	opaClient := opa.NewOpenPolicyAgentClient(url, paths, opa.WithLogger(l), opa.WithHttpClient(c))
+	a := policy.NewOpenPolicyAgent(opaClient, l)
 
+	// TODO: This is a nice reminder that our opa-client-go library could be expanded to do more. Such logic could be refactored there.
 	req, err := http.NewRequest(
 		"PUT",
 		fmt.Sprintf("%s/v1/policies/c1d20fbc-e9bc-44fb-8b88-0e01d6b13225", url),
@@ -1041,7 +1045,7 @@ func getAgent(p string, l *logger.UPPLogger, t *testing.T) *policy.Agent {
 	return a
 }
 
-func getContentService(d *cmneo4j.Driver, a *policy.Agent, l *logger.UPPLogger) Service {
+func getContentService(d *cmneo4j.Driver, a policy.Agent, l *logger.UPPLogger) Service {
 	cs := NewContentService(d, a, l)
 	_ = cs.Initialise()
 	return cs

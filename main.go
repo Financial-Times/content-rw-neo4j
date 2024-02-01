@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
-	"net/http"
 	"os"
 	"time"
+
+	"github.com/Financial-Times/opa-client-go"
 
 	"github.com/Financial-Times/content-rw-neo4j/v3/policy"
 
@@ -18,7 +19,7 @@ import (
 )
 
 const (
-	appDescription = "A RESTful API for managing content (barebone representation as full content is served from MongoDB) in Neo4j"
+	appDescription = "A RESTful API for managing content (bare-bones representation as full content is served from MongoDB) in Neo4j"
 )
 
 func main() {
@@ -73,46 +74,16 @@ func main() {
 		EnvVar: "DB_DRIVER_LOG_LEVEL",
 	})
 
-	httpClientMaxIdleConns := app.Int(cli.IntOpt{
-		Name:   "httpClientMaxIdleConns",
-		Value:  100,
-		Desc:   "Maximum amount of connections available to the http client.",
-		EnvVar: "HTTP_CLIENT_MAX_IDLE_CONNS",
-	})
-
-	httpClientMaxIdleConnsPerHost := app.Int(cli.IntOpt{
-		Name:   "httpClientMaxIdleConnsPerHost",
-		Value:  10,
-		Desc:   "Maximum amount of idle connections available to the http client per host.",
-		EnvVar: "HTTP_CLIENT_MAX_IDLE_CONNS_PER_HOST",
-	})
-
-	httpClientTimeout := app.Int(cli.IntOpt{
-		Name:   "httpClientTimeout",
-		Value:  10,
-		Desc:   "Timeout used by the http client for each connection, in seconds.",
-		EnvVar: "HTTP_CLIENT_TIMEOUT",
-	})
-
-	httpClientIdleConnTimeout := app.Int(cli.IntOpt{
-		Name:   "httpClientIdleConnTimeout",
-		Value:  15,
-		Desc:   "Timeout used by the http client for idle connection, in seconds.",
-		EnvVar: "HTTP_CLIENT_IDLE_CONN_TIMEOUT",
-	})
-
-	httpClientResponseHeaderTimeout := app.Int(cli.IntOpt{
-		Name:   "httpClientResponseHeaderTimeout",
-		Value:  15,
-		Desc:   "Timeout used by the http client to wait for the server response headers.",
-		EnvVar: "HTTP_CLIENT_RESPONSE_HEADER_TIMEOUT",
-	})
-
-	policyAgentURL := app.String(cli.StringOpt{
-		Name:   "policyAgentURL",
-		Value:  "http://localhost:8181",
+	opaURL := app.String(cli.StringOpt{
+		Name:   "opaURL",
 		Desc:   "URL of the policy agent.",
-		EnvVar: "POLICY_AGENT_URL",
+		EnvVar: "OPA_URL",
+	})
+
+	opaSpecialContentPolicyPath := app.String(cli.StringOpt{
+		Name:   "opaSpecialContentPolicyPath",
+		Desc:   "Query path for the special content policy.",
+		EnvVar: "OPA_SPECIAL_CONTENT_POLICY_PATH",
 	})
 
 	log := logger.NewUPPInfoLogger(*appName)
@@ -139,21 +110,11 @@ func main() {
 			}
 		}(driver)
 
-		t := http.DefaultTransport.(*http.Transport).Clone()
-		t.MaxIdleConns = *httpClientMaxIdleConns
-		t.MaxIdleConnsPerHost = *httpClientMaxIdleConnsPerHost
-		t.IdleConnTimeout = time.Duration(*httpClientIdleConnTimeout) * time.Second
-		t.ResponseHeaderTimeout = time.Duration(*httpClientResponseHeaderTimeout) * time.Second
-		t.DisableKeepAlives = false
-		httpClient := &http.Client{
-			Timeout:   time.Duration(*httpClientTimeout) * time.Second,
-			Transport: t,
-		}
-
 		paths := map[string]string{
-			policy.SpecialContentKey: "content_rw_neo4j/special_content",
+			policy.SpecialContentKey: *opaSpecialContentPolicyPath,
 		}
-		agent := policy.NewAgent(*policyAgentURL, paths, httpClient, log)
+		opaClient := opa.NewOpenPolicyAgentClient(*opaURL, paths, opa.WithLogger(log))
+		agent := policy.NewOpenPolicyAgent(opaClient, log)
 
 		contentDriver := content.NewContentService(driver, agent, log)
 

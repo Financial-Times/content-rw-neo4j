@@ -44,6 +44,10 @@ spec:
             configMapKeyRef:
               name: global-config
               key: neo4j.statements.batch.size
+        - name: OPA_URL
+          value: {{ .Values.env.opaUrl }}
+        - name: OPA_SPECIAL_CONTENT_POLICY_PATH
+          value: {{ .Values.env.opaSpecialContentPolicyPath }}
         ports:
         - containerPort: 8080
         livenessProbe:
@@ -68,7 +72,7 @@ spec:
             valueFrom:
               configMapKeyRef:
                 name: global-config
-                key: opa.policy.bucket
+                key: opa.policy2.bucket
         ports:
           - name: http
             containerPort: 8181
@@ -90,11 +94,10 @@ spec:
           - "run"
           - "--ignore=.*"
           - "--server"
-          - "--set=decision_logs.console=true"
+          - "--log-level=error"
           - "--log-format=json-pretty"
           - "--set=services.bundlesS3Bucket.url=$(POLICY_BUCKET)"
-          # The region below is hardcoded because the default location for the bucket (the one appended to the url above) is set to eu-west-1, it's not a mistake.
-          - "--set=services.bundlesS3Bucket.credentials.s3_signing.web_identity_credentials.aws_region=eu-west-1"
+          - "--set=services.bundlesS3Bucket.credentials.s3_signing.web_identity_credentials.aws_region=$(AWS_REGION)"
           - "--set=bundles.contentRWNeo4j.service=bundlesS3Bucket"
           - "--set=bundles.contentRWNeo4j.resource=content-rw-neo4j.bundle.tar.gz"
           - "--set=bundles.contentRWNeo4j.polling.min_delay_seconds=120"

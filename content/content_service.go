@@ -31,12 +31,12 @@ var contentTypesWithNoBody = map[string]bool{
 
 type Service struct {
 	driver *cmneo4j.Driver
-	agent  *policy.Agent
+	agent  policy.Agent
 	log    *logger.UPPLogger
 }
 
 // NewCypherDriver instantiate driver
-func NewContentService(d *cmneo4j.Driver, a *policy.Agent, l *logger.UPPLogger) Service {
+func NewContentService(d *cmneo4j.Driver, a policy.Agent, l *logger.UPPLogger) Service {
 	return Service{
 		driver: d,
 		agent:  a,
@@ -112,13 +112,15 @@ func (cd Service) Write(thing interface{}, transID string) error {
 		return nil
 	}
 
-	decision, err := cd.agent.CheckSpecialContentPolicy(policy.SpecialContentQuery{
-		EditorialDesk: c.EditorialDesk,
-	})
+	result, err := cd.agent.EvaluateSpecialContentPolicy(
+		map[string]interface{}{
+			"editorialDesk": c.EditorialDesk,
+		},
+	)
 	if err != nil {
 		return err
 	}
-	if decision.Result.(policy.SpecialContentDecision).IsSpecialContent {
+	if result.IsSpecialContent {
 		cd.log.Infof("Content with ID %s was marked as special content, it would not be persisted.", c.UUID)
 		return nil
 	}
