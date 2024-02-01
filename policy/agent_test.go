@@ -3,16 +3,18 @@ package policy
 import (
 	"errors"
 	"fmt"
-	"github.com/Financial-Times/go-logger/v2"
-	"github.com/Financial-Times/opa-client-go"
-	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+
+	"github.com/Financial-Times/go-logger/v2"
+	"github.com/Financial-Times/opa-client-go"
 )
 
 const (
-	testDecisionId = "1e58b3bf-995c-473e-90e9-ab1f10af74ab"
+	testDecisionID = "1e58b3bf-995c-473e-90e9-ab1f10af74ab"
 )
 
 func TestAgent_EvaluateSpecialContentPolicy(t *testing.T) {
@@ -26,9 +28,9 @@ func TestAgent_EvaluateSpecialContentPolicy(t *testing.T) {
 	}{
 		{
 			name: "Evaluate a valid decision for special content",
-			server: createHttpTestServer(
+			server: createHTTPTestServer(
 				t,
-				fmt.Sprintf(`{"decision_id": %q, "result": {"is_special_content": true}}`, testDecisionId),
+				fmt.Sprintf(`{"decision_id": %q, "result": {"is_special_content": true}}`, testDecisionID),
 			),
 			paths: map[string]string{
 				SpecialContentKey: "special/content",
@@ -43,9 +45,9 @@ func TestAgent_EvaluateSpecialContentPolicy(t *testing.T) {
 		},
 		{
 			name: "Evaluate a valid decision for non-special content",
-			server: createHttpTestServer(
+			server: createHTTPTestServer(
 				t,
-				fmt.Sprintf(`{"decision_id": %q, "result": {"is_special_content": false}}`, testDecisionId),
+				fmt.Sprintf(`{"decision_id": %q, "result": {"is_special_content": false}}`, testDecisionID),
 			),
 			paths: map[string]string{
 				SpecialContentKey: "special/content",
@@ -60,7 +62,7 @@ func TestAgent_EvaluateSpecialContentPolicy(t *testing.T) {
 		},
 		{
 			name: "Evaluate and receive an error.",
-			server: createHttpTestServer(
+			server: createHTTPTestServer(
 				t,
 				``,
 			),
@@ -85,7 +87,7 @@ func TestAgent_EvaluateSpecialContentPolicy(t *testing.T) {
 			if err != nil {
 				if !errors.Is(err, test.expectedError) {
 					t.Errorf(
-						"Unexpected error recieved from call to EvaluateSpecialContentPolicy: %v",
+						"Unexpected error received from call to EvaluateSpecialContentPolicy: %v",
 						err,
 					)
 				}
@@ -96,7 +98,7 @@ func TestAgent_EvaluateSpecialContentPolicy(t *testing.T) {
 	}
 }
 
-func createHttpTestServer(t *testing.T, response string) *httptest.Server {
+func createHTTPTestServer(t *testing.T, response string) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, err := w.Write([]byte(response))

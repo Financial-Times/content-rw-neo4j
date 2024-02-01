@@ -2,8 +2,6 @@ module github.com/Financial-Times/content-rw-neo4j/v3
 
 go 1.21
 
-toolchain go1.21.5
-
 require (
 	github.com/Financial-Times/base-ft-rw-app-go/v2 v2.0.0-20211207113529-d0faaa432d5d
 	github.com/Financial-Times/cm-neo4j-driver v1.1.0

@@ -7,10 +7,11 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/Financial-Times/opa-client-go"
 	"net/http"
 	"os"
 	"testing"
+
+	"github.com/Financial-Times/opa-client-go"
 
 	"github.com/Financial-Times/content-rw-neo4j/v3/policy"
 
@@ -1006,7 +1007,7 @@ func checkDBClean(d *cmneo4j.Driver, t *testing.T) {
 }
 
 func getAgent(p string, l *logger.UPPLogger, t *testing.T) policy.Agent {
-	url := os.Getenv("POLICY_AGENT_TEST_URL")
+	url := os.Getenv("OPA_URL")
 	if url == "" {
 		url = "http://localhost:8181"
 	}

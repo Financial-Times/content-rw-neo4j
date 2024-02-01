@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
-	"github.com/Financial-Times/opa-client-go"
 	"os"
 	"time"
+
+	"github.com/Financial-Times/opa-client-go"
 
 	"github.com/Financial-Times/content-rw-neo4j/v3/policy"
 
@@ -73,8 +74,8 @@ func main() {
 		EnvVar: "DB_DRIVER_LOG_LEVEL",
 	})
 
-	opaUrl := app.String(cli.StringOpt{
-		Name:   "opaUrl",
+	opaURL := app.String(cli.StringOpt{
+		Name:   "opaURL",
 		Desc:   "URL of the policy agent.",
 		EnvVar: "OPA_URL",
 	})
@@ -112,7 +113,7 @@ func main() {
 		paths := map[string]string{
 			policy.SpecialContentKey: *opaSpecialContentPolicyPath,
 		}
-		opaClient := opa.NewOpenPolicyAgentClient(*opaUrl, paths, opa.WithLogger(log))
+		opaClient := opa.NewOpenPolicyAgentClient(*opaURL, paths, opa.WithLogger(log))
 		agent := policy.NewOpenPolicyAgent(opaClient, log)
 
 		contentDriver := content.NewContentService(driver, agent, log)

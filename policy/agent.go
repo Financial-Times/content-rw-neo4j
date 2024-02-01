@@ -3,6 +3,7 @@ package policy
 import (
 	"errors"
 	"fmt"
+
 	"github.com/Financial-Times/go-logger/v2"
 	"github.com/Financial-Times/opa-client-go"
 )
@@ -38,12 +39,12 @@ func (o *OpenPolicyAgent) EvaluateSpecialContentPolicy(
 ) (*SpecialContentPolicyResult, error) {
 	r := &SpecialContentPolicyResult{}
 
-	decisionId, err := o.client.DoQuery(q, SpecialContentKey, r)
+	decisionID, err := o.client.DoQuery(q, SpecialContentKey, r)
 	if err != nil {
-		return nil, fmt.Errorf("%w: Kafka Ingest Policy: %w", ErrEvaluatePolicy, err)
+		return nil, fmt.Errorf("%w: Special Content Policy: %w", ErrEvaluatePolicy, err)
 	}
 
-	o.log.Infof("Evaluated Kafka Ingest Policy: decisionId: %q, result: %v", decisionId, r)
+	o.log.Infof("Evaluated Special Content Policy: decisionID: %q, result: %v", decisionID, r)
 
 	return r, nil
 }
