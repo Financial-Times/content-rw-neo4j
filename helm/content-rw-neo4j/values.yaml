@@ -11,7 +11,7 @@ image:
 openPolicyAgentSidecar:
   name: open-policy-agent
   repository: openpolicyagent/opa
-  tag: 0.61.0
+  tag: 0.62.1
   pullPolicy: IfNotPresent
 serviceAccount: eksctl-content-rw-neo4j-serviceaccount
 resources:

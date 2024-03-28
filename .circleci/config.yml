@@ -17,8 +17,8 @@ executors:
           NEO4J_HEAP_MEMORY: 256
           NEO4J_CACHE_MEMORY: 256M
           NEO4J_ACCEPT_LICENSE_AGREEMENT: "yes"
-      - image: openpolicyagent/opa:0.61.0
-        command: [ "run", "--server", "--addr=0.0.0.0:8181", "--log-format=json-pretty", "--set=decision_logs.console=true" ]
+      - image: openpolicyagent/opa:0.62.1
+        command: [ "run", "--server", "--addr=0.0.0.0:8181", "--log-level=error", "--log-format=json"]
 
 jobs:
   dredd:

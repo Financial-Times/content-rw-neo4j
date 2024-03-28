@@ -44,7 +44,11 @@ func (o *OpenPolicyAgent) EvaluateSpecialContentPolicy(
 		return nil, fmt.Errorf("%w: Special Content Policy: %w", ErrEvaluatePolicy, err)
 	}
 
-	o.log.Infof("Evaluated Special Content Policy: decisionID: %q, result: %v", decisionID, r)
+	if decisionID != "" {
+		o.log.Infof("Evaluated Special Content Policy: decisionID: %q, result: %v", decisionID, *r)
+	} else {
+		o.log.Infof("Evaluated Special Content Policy: result: %v", *r)
+	}
 
 	return r, nil
 }
