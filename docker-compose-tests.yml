@@ -25,11 +25,11 @@ services:
       - "7474:7474"
       - "7687:7687"
   opa:
-    image: openpolicyagent/opa:0.61.0
+    image: openpolicyagent/opa:0.62.1
     ports:
       - "8181:8181"
     command:
       - "run"
       - "--server"
-      - "--log-format=json-pretty"
+      - "--log-format=json"
       - "--set=decision_logs.console=true"
