@@ -1,7 +1,7 @@
 version: 2.1
 
 orbs:
-  ft-golang-ci: financial-times/golang-ci@1
+  ft-golang-ci: financial-times/golang-ci@2
 
 executors:
   default-with-neo4j-and-opa:
@@ -67,10 +67,3 @@ workflows:
           requires:
             - build-and-test-project
           context: cm-team-github
-  snyk-scanning:
-    jobs:
-      - ft-golang-ci/scan:
-          name: scan-dependencies
-          context:
-            - cm-team-snyk
-            - cm-team-github
