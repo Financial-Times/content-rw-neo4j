@@ -1,10 +1,8 @@
-//go:build integration
-// +build integration
-
 package content
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -39,6 +37,7 @@ const (
 	graphicUUID                  = "087b42c2-ac7f-40b9-b112-98b3a7f9cd72"
 	audioContentUUID             = "128cfcf4-c394-4e71-8c65-198a675acf53"
 	liveEventUUID                = "23531906-9f98-45c7-a9db-d05bdb72eeaf"
+	unExistentContent            = "ce3f2f5e-33d1-4c36-89e3-555555555555"
 	defaultPolicy                = `
 	package content_rw_neo4j.special_content
 	
@@ -203,6 +202,20 @@ func TestGetContentLabels(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetContentNotFound(t *testing.T) {
+	asst := assert.New(t)
+	l := logger.NewUPPLogger("content-rw-neo4j-test", "PANIC")
+	a := getAgent(defaultPolicy, l, t)
+	d := getDriverAndCheckClean(t, asst, l)
+	s := getContentService(d, a, l)
+	defer cleanDB(d, asst)
+
+	content, found, err := s.Read(unExistentContent, "TEST_TRANS_ID")
+	asst.Empty(content, "Content should be empty")
+	asst.False(found, "Content should not be found")
+	asst.NoError(err, "Error should be nil")
 }
 
 func TestDeleteWithNoRelsIsDeleted(t *testing.T) {
@@ -522,7 +535,7 @@ func TestWriteCalculateEpocCorrectly(t *testing.T) {
 		Result: &result,
 	}
 
-	err = d.Write(getEpochQuery)
+	err = d.Write(context.Background(), getEpochQuery)
 	asst.NoError(err)
 	asst.Equal(3600, result[0].PublishedDateEpoc, "Epoc of 1970-01-01T01:00:00.000Z should be 3600")
 }
@@ -552,7 +565,7 @@ func TestWritePrefLabelIsAlsoWrittenAndIsEqualToTitle(t *testing.T) {
 		Result: &result,
 	}
 
-	err = d.Write(getPrefLabelQuery)
+	err = d.Write(context.Background(), getPrefLabelQuery)
 	asst.NoError(err)
 	asst.Equal(standardContent.Title, result[0].PrefLabel, "PrefLabel should be 'Content Title'")
 }
@@ -584,7 +597,7 @@ func TestWriteNodeLabelsAreWrittenForContent(t *testing.T) {
 		},
 	}
 
-	err = d.Write(getNodeLabelsQuery...)
+	err = d.Write(context.Background(), getNodeLabelsQuery...)
 	asst.NoError(err)
 
 	want := []string{"Thing", "Content"}
@@ -618,7 +631,7 @@ func TestWriteNodeLabelsAreWrittenForContentPackage(t *testing.T) {
 		Result: &result,
 	}
 
-	err = d.Write(getNodeLabelsQuery)
+	err = d.Write(context.Background(), getNodeLabelsQuery)
 	asst.NoError(err)
 
 	want := []string{"Thing", "Content", "ContentPackage"}
@@ -652,7 +665,7 @@ func TestWriteNodeLabelsAreWrittenForGenericContentPackage(t *testing.T) {
 		Result: &result,
 	}
 
-	err = d.Write(getNodeLabelsQuery)
+	err = d.Write(context.Background(), getNodeLabelsQuery)
 	asst.NoError(err)
 
 	want := []string{"Thing", "Content", "ContentPackage"}
@@ -846,7 +859,7 @@ func cleanDB(d *cmneo4j.Driver, a *assert.Assertions) {
 		})
 	}
 
-	err := d.Write(qs...)
+	err := d.Write(context.Background(), qs...)
 	a.NoError(err)
 }
 
@@ -871,7 +884,7 @@ func writeContentPackageContainsRelation(
 		},
 	}
 
-	err := d.Write(qs...)
+	err := d.Write(context.Background(), qs...)
 	a.NoError(err)
 }
 
@@ -887,7 +900,7 @@ func writeNodeWithLabels(d *cmneo4j.Driver, UUID string, labels string, a *asser
 		},
 	}
 
-	err := d.Write(qs...)
+	err := d.Write(context.Background(), qs...)
 	a.NoError(err)
 }
 
@@ -913,7 +926,7 @@ func writeRelationship(
 		},
 	}
 
-	err := d.Write(qs...)
+	err := d.Write(context.Background(), qs...)
 	a.NoError(err)
 }
 
@@ -930,7 +943,7 @@ func doesThingExist(uuid string, d *cmneo4j.Driver) (bool, error) {
 		},
 		Result: &result,
 	}
-	err := d.Write(query)
+	err := d.Write(context.Background(), query)
 	if errors.Is(err, cmneo4j.ErrNoResultsFound) {
 		return false, nil
 	}
@@ -954,7 +967,7 @@ func checkIsCuratedForRelationship(d *cmneo4j.Driver, spID string, a *assert.Ass
 		Result: &results,
 	}
 
-	err := d.Write(qs)
+	err := d.Write(context.Background(), qs)
 	a.NoError(err)
 
 	return results[0].Count
@@ -975,7 +988,7 @@ func checkContainsRelationship(d *cmneo4j.Driver, cpID string, a *assert.Asserti
 		Result: &results,
 	}
 
-	err := d.Write(qs)
+	err := d.Write(context.Background(), qs)
 	a.NoError(err)
 
 	return results[0].Count
@@ -998,7 +1011,7 @@ func checkDBClean(d *cmneo4j.Driver, t *testing.T) {
 		},
 		Result: &result,
 	}
-	err := d.Write(checkGraph)
+	err := d.Write(context.Background(), checkGraph)
 	if errors.Is(err, cmneo4j.ErrNoResultsFound) {
 		a.Empty(result)
 	} else {

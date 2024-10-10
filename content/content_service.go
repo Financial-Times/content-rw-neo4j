@@ -1,6 +1,7 @@
 package content
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -46,7 +47,7 @@ func NewContentService(d *cmneo4j.Driver, a policy.Agent, l *logger.UPPLogger) S
 
 // Initialise ensures constraints on content uuid
 func (cd Service) Initialise() error {
-	err := cd.driver.EnsureConstraints(map[string]string{
+	err := cd.driver.EnsureConstraints(context.Background(), map[string]string{
 		"Content": "uuid"})
 	return err
 }
@@ -64,7 +65,7 @@ func (cd Service) Read(uuid string, transID string) (interface{}, bool, error) {
 	}
 
 	query := &cmneo4j.Query{
-		Cypher: `MATCH (n:Content {uuid: $uuid})
+		Cypher: `OPTIONAL MATCH (n:Content {uuid: $uuid})
 			OPTIONAL MATCH (sp:Thing)-[rel1:IS_CURATED_FOR]->(n)
 			OPTIONAL MATCH (n)-[rel2:CONTAINS]->(cp:Thing)
 			WITH n,sp,cp
@@ -80,7 +81,7 @@ func (cd Service) Read(uuid string, transID string) (interface{}, bool, error) {
 		Result: &results,
 	}
 
-	err := cd.driver.Read(query)
+	err := cd.driver.Read(context.Background(), query)
 
 	if errors.Is(err, cmneo4j.ErrNoResultsFound) {
 		return content{}, false, nil
@@ -91,6 +92,11 @@ func (cd Service) Read(uuid string, transID string) (interface{}, bool, error) {
 	}
 
 	result := results[0]
+
+	// At this point in time if the UUID is empty, it means that the content was not found
+	if result.UUID == "" {
+		return content{}, false, nil
+	}
 
 	contentItem := content{
 		UUID:           result.UUID,
@@ -186,7 +192,7 @@ func (cd Service) Write(thing interface{}, transID string) error {
 	}
 
 	queries = append(queries, writeContentQuery)
-	err = cd.driver.Write(queries...)
+	err = cd.driver.Write(context.Background(), queries...)
 	if err != nil {
 		return err
 	}
@@ -255,7 +261,7 @@ func (cd Service) Delete(uuid string, transID string) (bool, error) {
 		IncludeSummary: true,
 	}
 
-	err := cd.driver.Write(clearCollectionNode)
+	err := cd.driver.Write(context.Background(), clearCollectionNode)
 	if err != nil {
 		return false, err
 	}
@@ -263,7 +269,7 @@ func (cd Service) Delete(uuid string, transID string) (bool, error) {
 	// so we execute them in separate batches
 	// dependency: if a CP is deleted before the first query is executed, there is no way to find the related node
 	// left after a ContentCollections is deleted
-	err = cd.driver.Write(removeNode)
+	err = cd.driver.Write(context.Background(), removeNode)
 	if err != nil {
 		return false, err
 	}
@@ -293,7 +299,7 @@ func (cd Service) Count() (int, error) {
 		Result: &results,
 	}
 
-	err := cd.driver.Read(query)
+	err := cd.driver.Read(context.Background(), query)
 
 	if errors.Is(err, cmneo4j.ErrNoResultsFound) {
 		return 0, nil
