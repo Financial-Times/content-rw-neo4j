@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"time"
@@ -99,12 +100,12 @@ func main() {
 		log.Infof("Application started with args %s", os.Args)
 		dbLog := logger.NewUPPLogger(*appName+"-cmneo4j-driver", *dbDriverLogLevel)
 
-		driver, err := cmneo4j.NewDefaultDriver(*neoURL, dbLog)
+		driver, err := cmneo4j.NewDefaultDriver(context.Background(), *neoURL, dbLog)
 		if err != nil {
 			log.WithError(err).Fatal("Could not create a new instance of cmneo4j driver")
 		}
 		defer func(driver *cmneo4j.Driver) {
-			err = driver.Close()
+			err = driver.Close(context.Background())
 			if err != nil {
 				log.WithError(err).Error("could not close the cmneo4j driver instance.")
 			}

@@ -55,7 +55,7 @@ func (cd Service) Initialise() error {
 // Check - Feeds into the Healthcheck and checks whether we can connect to Neo and that the datastore isn't empty and
 // also checks if we are connected to leader/writable node
 func (cd Service) Check() error {
-	return cd.driver.VerifyConnectivity()
+	return cd.driver.VerifyConnectivity(context.Background())
 }
 
 // Read - reads a content given a UUID
