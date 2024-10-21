@@ -825,7 +825,7 @@ func getNeoDriver(a *assert.Assertions, l *logger.UPPLogger) *cmneo4j.Driver {
 	if url == "" {
 		url = "bolt://localhost:7687"
 	}
-	d, err := cmneo4j.NewDefaultDriver(url, l)
+	d, err := cmneo4j.NewDefaultDriver(context.Background(), url, l)
 	a.NoError(err, "Failed to connect to Neo4j")
 	return d
 }

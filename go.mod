@@ -6,7 +6,7 @@ toolchain go1.23.0
 
 require (
 	github.com/Financial-Times/base-ft-rw-app-go/v2 v2.0.0-20211207113529-d0faaa432d5d
-	github.com/Financial-Times/cm-neo4j-driver v1.1.2-0.20241008143743-f57d0eb875d8
+	github.com/Financial-Times/cm-neo4j-driver v1.1.2-0.20241021114714-9aeb083fb792
 	github.com/Financial-Times/go-fthealth v0.0.0-20171204124831-1b007e2b37b7
 	github.com/Financial-Times/go-logger/v2 v2.0.1
 	github.com/Financial-Times/opa-client-go v1.1.2
