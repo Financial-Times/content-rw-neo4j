@@ -12,7 +12,7 @@ import (
 
 	"github.com/Financial-Times/content-rw-neo4j/v3/policy"
 
-	cmneo4j "github.com/Financial-Times/cm-neo4j-driver"
+	cmneo4j "github.com/Financial-Times/cm-neo4j-driver/v2"
 )
 
 const LiveBlogPackage = "LiveBlogPackage"

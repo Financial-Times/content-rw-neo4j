@@ -1,3 +1,6 @@
+//go:build integration
+// +build integration
+
 package content
 
 import (
@@ -17,7 +20,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/stretchr/testify/assert"
 
-	cmneo4j "github.com/Financial-Times/cm-neo4j-driver"
+	cmneo4j "github.com/Financial-Times/cm-neo4j-driver/v2"
 	"github.com/Financial-Times/go-logger/v2"
 )
 

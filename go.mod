@@ -6,7 +6,7 @@ toolchain go1.23.0
 
 require (
 	github.com/Financial-Times/base-ft-rw-app-go/v2 v2.0.0-20211207113529-d0faaa432d5d
-	github.com/Financial-Times/cm-neo4j-driver v1.1.2-0.20241021114714-9aeb083fb792
+	github.com/Financial-Times/cm-neo4j-driver/v2 v2.0.0
 	github.com/Financial-Times/go-fthealth v0.0.0-20171204124831-1b007e2b37b7
 	github.com/Financial-Times/go-logger/v2 v2.0.1
 	github.com/Financial-Times/opa-client-go v1.1.2
@@ -33,7 +33,7 @@ require (
 	github.com/rcrowley/go-metrics v0.0.0-20161128210544-1f30fe9094a5 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	golang.org/x/net v0.22.0 // indirect
-	golang.org/x/sys v0.18.0 // indirect
+	golang.org/x/sys v0.26.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.0 // indirect
 )

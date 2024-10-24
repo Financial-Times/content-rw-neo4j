@@ -13,7 +13,7 @@ import (
 	cli "github.com/jawher/mow.cli"
 
 	"github.com/Financial-Times/base-ft-rw-app-go/v2/baseftrwapp"
-	cmneo4j "github.com/Financial-Times/cm-neo4j-driver"
+	cmneo4j "github.com/Financial-Times/cm-neo4j-driver/v2"
 	"github.com/Financial-Times/content-rw-neo4j/v3/content"
 	fthealth "github.com/Financial-Times/go-fthealth/v1_1"
 	"github.com/Financial-Times/go-logger/v2"
